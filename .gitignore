@@ -42,3 +42,6 @@
 # data
 /data/*
 /data/raw_html/raw.txt
+
+# test
+/test

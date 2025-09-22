@@ -2,16 +2,17 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <boost/algorithm/string.hpp>
 
 class File_Util
 {
 public:
     static bool ReadFile(const std::string file_name, std::string *out)
     {
-        std::ifstream in(file_name, std::ios::in); // 以输入模式打开 file_name 文件
+        std::ifstream in(file_name, std::ios::in); // 以输入模式(读)打开 file_name 文件
         if (!in.is_open())
         {
-            std::cerr << "open file error " << std::endl;
+            std::cerr << "open file : " << file_name << " fail " << std::endl;
             return false;
         }
 
@@ -21,5 +22,14 @@ public:
 
         in.close();
         return true;
+    }
+};
+
+class String_Util
+{
+public:
+    static void Split(std::string &line, std::vector<std::string> *result, const std::string &sep)
+    {
+        boost::split(result, line, boost::is_any_of(sep), boost::algorithm::token_compress_on);
     }
 };
