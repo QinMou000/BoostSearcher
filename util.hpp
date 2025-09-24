@@ -3,6 +3,7 @@
 #include <string>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
+#include "cppjieba/Jieba.hpp"
 
 class File_Util
 {
@@ -33,3 +34,17 @@ public:
         boost::split(result, line, boost::is_any_of(sep), boost::algorithm::token_compress_on);
     }
 };
+
+class Jieba_util
+{
+private:
+    static cppjieba::Jieba jieba;
+
+public:
+    static void CutString(const std::string &src, std::vector<std::string> *out)
+    {
+        jieba.CutForSearch(src, *out); // 切词函数
+    }
+};
+
+cppjieba::Jieba Jieba_util::jieba; // 类内 statci 成员在类外定义

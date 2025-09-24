@@ -108,6 +108,44 @@ namespace ns_index
         }
         bool BuildInvertedIndex(const DocInfo doc)
         {
+            struct word_count
+            {
+                int title_count = 0;
+                int conten_count = 0;
+            };
+
+            std::unordered_map<std::string, word_count> word_map;
+
+            std::vector<std::string> title_words;
+            Jieba_util::CutString(doc.title, &title_words); // 对标题进行切分
+            for (auto word : title_words)
+            {
+                boost::to_lower(word);        // 将词统一转成小写
+                word_map[word].title_count++; // 插入词和出现次数的映射表中
+            }
+            // 同理将内容的次数统计好
+            std::vector<std::string> content_words;
+            Jieba_util::CutString(doc.content, &content_words);
+            for (auto word : content_words)
+            {
+                boost::to_lower(word);
+                word_map[word].title_count++;
+            }
+#define TITLE_W 10
+#define CONTENT_W 1
+            for (auto &pair : word_map) // 这里是每一个词和他在这个文档中出现次数的映射
+            {
+                // 我们要将这个得到一个倒排拉链里面的一个元素
+                InvertedElem inverted_elem;
+                inverted_elem.doc_id = doc.doc_id; // 这里就将DocInfo中的id用上了
+                inverted_elem.word = pair.first;
+                inverted_elem.weight = pair.second.title_count * TITLE_W +
+                                       pair.second.conten_count * CONTENT_W;
+                // 从倒排索引中拿到当前词的倒排拉链的引用
+                InvertedList &inverted_list = inverted_index[pair.first];
+                inverted_list.emplace_back(inverted_elem);
+            }
+            return true;
         }
     };
 };
