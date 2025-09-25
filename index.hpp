@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <fstream>
+#include <mutex>
 #include "util.hpp"
 
 namespace ns_index
@@ -25,15 +26,36 @@ namespace ns_index
 
     typedef std::vector<InvertedElem> InvertedList; // 倒排拉链
 
-    class index
+    class Index
     {
     private:
         std::vector<DocInfo> forward_index;                           // 正排索引 用数组下表作为文档 id
         std::unordered_map<std::string, InvertedList> inverted_index; // 倒排索引 一个 word 和一组(almost) InvertedList 对应 (关键字和倒排拉链的映射 )
+    private:
+        Index() {}
+        Index(Index &index) = delete;
+        Index &operator=(const Index &index) = delete;
+
+        static Index *instance;
+        static std::mutex mtx;
 
     public:
-        index() {}
-        ~index() {}
+        static Index *GetInstance()
+        {
+            // 外面再包一层 可以挡住绝大部分线程 不用让那么多线程到锁那里去排队
+            if (instance == nullptr)
+            {
+                mtx.lock(); // 加锁
+                if (instance == nullptr)
+                {
+                    instance = new Index;
+                }
+                mtx.unlock();
+            }
+            return instance;
+        }
+
+        ~Index() {}
 
         // 根据 doc_id 找到文档
         DocInfo *GetForwardIndex(uint64_t doc_id)
@@ -148,4 +170,6 @@ namespace ns_index
             return true;
         }
     };
+    Index *Index::instance = nullptr; // 在类外初始化单例
+    std::mutex Index::mtx;
 };
