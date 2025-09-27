@@ -1,6 +1,18 @@
-parser:parser.cc
-	g++ -o $@ $^ -std=c++11 -lboost_filesystem -lboost_system
+PARSER=parser
+DEBUG=debug
+HTTP_SERVER=http_server
+cc=g++
+
+.PHONY:all
+all:$(PARSER) $(DEBUG) $(HTTP_SERVER)
+
+$(PARSER):parser.cc
+	$(cc) -o $@ $^ -std=c++11 -lboost_filesystem -lboost_system -I./cppjieba/include
+$(DEBUG):debug.cc
+	$(cc) -o $@ $^ -std=c++11  -I./cppjieba/include -ljsoncpp
+$(HTTP_SERVER):http_server.cc
+	$(cc) -o $@ $^ -std=c++11  -I./cppjieba/include -ljsoncpp -lpthread
 
 .PHONY:clean
 clean:
-	rm -f test
+	rm -f $(PARSER) $(DEBUG) $(HTTP_SERVER)

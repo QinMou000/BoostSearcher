@@ -31,7 +31,7 @@ class String_Util
 public:
     static void Split(std::string &line, std::vector<std::string> *result, const std::string &sep)
     {
-        boost::split(result, line, boost::is_any_of(sep), boost::algorithm::token_compress_on);
+        boost::split(*result, line, boost::is_any_of(sep), boost::algorithm::token_compress_on);
     }
 };
 

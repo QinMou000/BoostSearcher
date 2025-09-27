@@ -91,7 +91,7 @@ namespace ns_index
                 std::cerr << "open file : " << raw_file_path << " fail " << std::endl;
                 return false;
             }
-
+            int cnt = 0;
             std::string line;
             while (std::getline(in, line)) // 文件按行读取
             {
@@ -102,7 +102,11 @@ namespace ns_index
                     return false;
                 }
                 BuildInvertedIndex(*doc);
+                cnt++;
+                if (cnt % 50 == 0)
+                std::cout << "已建立索引:" << cnt << std::endl; // TODO 引入日志
             }
+            return true;
         }
 
     private:
@@ -133,9 +137,16 @@ namespace ns_index
             struct word_count
             {
                 int title_count = 0;
-                int conten_count = 0;
+                int content_count = 0;
             };
-
+            // TODEBUG
+            if (doc.doc_id == 8678)
+            {
+                std::cout << doc.url << std::endl;
+                std::cout << doc.content << std::endl;
+                std::cout << doc.title << std::endl;
+            }
+            // TODEBUG
             std::unordered_map<std::string, word_count> word_map;
 
             std::vector<std::string> title_words;
@@ -151,10 +162,18 @@ namespace ns_index
             for (auto word : content_words)
             {
                 boost::to_lower(word);
-                word_map[word].title_count++;
+                word_map[word].content_count++;
             }
 #define TITLE_W 10
 #define CONTENT_W 1
+            // TODEBUG
+            // if (doc.doc_id == 8678)
+            // {
+            //     std::cout << doc.url << std::endl;
+            //     std::cout << doc.content << std::endl;
+            //     std::cout << doc.title << std::endl;
+            // }
+            // TODEBUG
             for (auto &pair : word_map) // 这里是每一个词和他在这个文档中出现次数的映射
             {
                 // 我们要将这个得到一个倒排拉链里面的一个元素
@@ -162,7 +181,7 @@ namespace ns_index
                 inverted_elem.doc_id = doc.doc_id; // 这里就将DocInfo中的id用上了
                 inverted_elem.word = pair.first;
                 inverted_elem.weight = pair.second.title_count * TITLE_W +
-                                       pair.second.conten_count * CONTENT_W;
+                                       pair.second.content_count * CONTENT_W;
                 // 从倒排索引中拿到当前词的倒排拉链的引用
                 InvertedList &inverted_list = inverted_index[pair.first];
                 inverted_list.emplace_back(inverted_elem);
