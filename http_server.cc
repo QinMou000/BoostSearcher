@@ -1,5 +1,6 @@
 #include "searcher.hpp"
 #include "httplib.h"
+#include "log.hpp"
 
 const std::string raw = "./data/raw_html/raw.txt"; // 解析完的内容
 const std::string root_path = "./wwwroot";
@@ -20,7 +21,8 @@ int main()
                     return ;
                 } 
                 std::string word = req.get_param_value("word");
-                std::cout << "用户搜索:" << word << std::endl;
+                // std::cout << "用户搜索:" << word << std::endl;
+                LOG(INFO, "用户搜索: " + word);
                 std::string json_string;
                 searcher.Search(word,&json_string); 
                 res.set_content(json_string,"application/json"); });

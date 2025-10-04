@@ -6,6 +6,7 @@
 #include <fstream>
 #include <mutex>
 #include "util.hpp"
+#include "log.hpp"
 
 namespace ns_index
 {
@@ -63,7 +64,8 @@ namespace ns_index
             // 判断 doc_id 是否超出范围
             if (doc_id >= forward_index.size())
             {
-                std::cerr << "doc_id out of range " << std::endl;
+                // std::cerr << "doc_id out of range " << std::endl;
+                LOG(WARNING, "doc_id out of range ");
                 return nullptr;
             }
             return &forward_index[doc_id];
@@ -75,20 +77,33 @@ namespace ns_index
             auto ret = inverted_index.find(word);
             if (ret == inverted_index.end())
             {
-                std::cerr << "can't find this word: " << word << " in inverted_index" << std::endl;
+                // std::cerr << "can't find this word: " << word << " in inverted_index" << std::endl;
+                LOG(WARNING, "can't find this word: " + word + " in inverted_index");
                 return nullptr;
             }
             return &ret->second;
         }
 
         // 根据清洗后的数据(boost-searcher/data/raw_html/raw.txt) 构建正排倒排索引
+        /**
+         * @brief Builds the index from a raw file.
+         *
+         * This function reads the specified file line by line, constructs the forward index for each line,
+         * and then builds the inverted index using the resulting document information. It logs progress
+         * every 50 documents processed and handles errors such as file opening failure or forward index
+         * construction failure.
+         *
+         * @param raw_file_path The path to the raw input file containing document data.
+         * @return true if the index was built successfully; false otherwise.
+         */
         bool BuildIndex(const std::string &raw_file_path)
         {
             // 打开文件
             std::ifstream in(raw_file_path, std::ios::in | std::ios::binary);
             if (!in.is_open())
             {
-                std::cerr << "open file : " << raw_file_path << " fail " << std::endl;
+                // std::cerr << "open file : " << raw_file_path << " fail " << std::endl;
+                LOG(FATAL, "open file : " + raw_file_path + " fail ");
                 return false;
             }
             int cnt = 0;
@@ -98,18 +113,36 @@ namespace ns_index
                 DocInfo *doc = BuildForwardIndex(line);
                 if (!doc)
                 {
-                    std::cerr << "BuildFowardIndex " << line << "fail" << std::endl;
+                    // std::cerr << "BuildFowardIndex " << line << "fail" << std::endl;
+                    LOG(ERROR, "BuildFowardIndex " + line + "fail");
                     return false;
                 }
                 BuildInvertedIndex(*doc);
                 cnt++;
                 if (cnt % 50 == 0)
-                std::cout << "已建立索引:" << cnt << std::endl; // TODO 引入日志
+                {
+                    // std::cout << "已建立索引:" << cnt << std::endl; // TODO 引入日志
+                    LOG(INFO, "已建立索引" + std::to_string(cnt));
+                }
             }
             return true;
         }
 
     private:
+        /**
+         * @brief Builds a forward index entry from a line of text.
+         *
+         * This function splits the input line using the specified separator,
+         * extracts the title, content, and URL fields, and constructs a DocInfo object.
+         * The doc_id is assigned based on the current size of the forward_index vector.
+         * The new DocInfo is appended to the forward_index and a pointer to it is returned.
+         *
+         * @param line The input line containing document information, separated by the specified delimiter.
+         * @return DocInfo* Pointer to the newly created DocInfo object, or nullptr if the input is invalid.
+         *
+         * @note Returning a pointer to an element in the vector may be risky if the vector is resized,
+         *       potentially leading to a dangling pointer. However, immediate usage is generally safe.
+         */
         /*
             title\3content\3url\n title\3content\3url\n title\3content\3url\n
         */
@@ -119,6 +152,13 @@ namespace ns_index
             const std::string sep = "\3";
             std::vector<std::string> result;
             String_Util::Split(line, &result, sep);
+
+            // 检查分割结果是否足够
+            if (result.size() < 3)
+            {
+                LOG(ERROR, "Split line failed, not enough fields: " + line);
+                return nullptr;
+            }
 
             // 写入 DocInfo
             DocInfo doc;
@@ -132,6 +172,19 @@ namespace ns_index
 
             return &forward_index.back(); // TODO 返回指针有一定的风险 vector扩容后 可能造成野指针 但是即拿即用没什么问题 (maybe~)
         }
+
+        /**
+         * @brief Builds the inverted index for a given document.
+         *
+         * This function processes the provided document by tokenizing its title and content,
+         * converting all words to lowercase, and counting their occurrences separately in the title and content.
+         * It then calculates a weighted score for each word based on its frequency in the title and content,
+         * using predefined weights (TITLE_W and CONTENT_W). For each unique word, an inverted index element
+         * is created and added to the corresponding inverted list in the inverted index.
+         *
+         * @param doc The document information containing doc_id, title, content, and url.
+         * @return true if the inverted index was built successfully.
+         */
         bool BuildInvertedIndex(const DocInfo doc)
         {
             struct word_count
@@ -140,12 +193,12 @@ namespace ns_index
                 int content_count = 0;
             };
             // TODEBUG
-            if (doc.doc_id == 8678)
-            {
-                std::cout << doc.url << std::endl;
-                std::cout << doc.content << std::endl;
-                std::cout << doc.title << std::endl;
-            }
+            // if (doc.doc_id == 8678)
+            // {
+            //     std::cout << doc.url << std::endl;
+            //     std::cout << doc.content << std::endl;
+            //     std::cout << doc.title << std::endl;
+            // }
             // TODEBUG
             std::unordered_map<std::string, word_count> word_map;
 

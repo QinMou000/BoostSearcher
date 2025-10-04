@@ -1,5 +1,6 @@
 #pragma once
 #include "index.hpp"
+#include "log.hpp"
 #include <algorithm>
 #include <json/json.h>
 
@@ -19,15 +20,29 @@ namespace ns_searcher
             index = ns_index::Index::GetInstance();
             if (index == nullptr)
             {
-                std::cerr << "获取单例失败" << std::endl;
+                // std::cerr << "获取单例失败" << std::endl;
+                LOG(FATAL, "获取单例失败");
                 exit(1);
             }
-            std::cout << "获取单例成功" << std::endl;
+            // std::cout << "获取单例成功" << std::endl;
+            LOG(INFO, "获取单例成功");
             // 建立索引
             index->BuildIndex(raw_file_path);
-            std::cout << "建立索引成功" << std::endl;
+            // std::cout << "建立索引成功" << std::endl;
+            LOG(INFO, "建立索引成功");
         }
         // 用户给我一个关键字 我返回一个 json 串
+        /**
+         * @brief Performs a search for the given query string and returns results in JSON format.
+         *
+         * This function tokenizes the input query using Jieba, retrieves relevant documents from the inverted index,
+         * merges results for documents matching multiple query terms, sorts the results by relevance (weight),
+         * and constructs a JSON array of up to 100 top results. Each result includes the document's title, a generated
+         * abstract based on the most relevant word, and the document's URL.
+         *
+         * @param query The search query string.
+         * @param json Pointer to a string where the resulting JSON will be stored.
+         */
         void Search(const std::string &query, std::string *json)
         {
             // 对关键字进行切词
@@ -57,7 +72,7 @@ namespace ns_searcher
                     // 将拿到的倒排拉链中的元素插入到hash里面去重
                     auto &Second = map[item.doc_id]; // 需要加引用 不加引用并不会改变map里面的值
                     Second.doc_id = item.doc_id;
-                    Second.sum_weight += item.weight;  // 将所有文档的权值累加
+                    Second.sum_weight += item.weight;     // 将所有文档的权值累加
                     Second.Words.emplace_back(item.word); // 依旧减少拷贝
                 }
 
@@ -85,7 +100,10 @@ namespace ns_searcher
                 Json::Value it; // 为单个文档构建 json
                 it["title"] = doc->title;
                 if (item.Words.empty())
-                    std::cerr << "No relavent words" << std::endl;
+                {
+                    // std::cerr << "No relavent words" << std::endl;
+                    LOG(WARNING, "No relavent words");
+                }
                 else
                     it["desc"] = GetAbstract(doc->content /*这里不能拿网页原始内容需要转小写 */,
                                              item.Words[0] /*数组第一个词传进去找*/); // TODO 不能把全部内容都加进去 // 需要获取摘要
