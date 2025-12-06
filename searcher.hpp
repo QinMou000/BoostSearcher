@@ -2,7 +2,7 @@
 #include "index.hpp"
 #include "log.hpp"
 #include <algorithm>
-#include <json/json.h>
+#include <jsoncpp/json/json.h>
 
 namespace ns_searcher
 {
