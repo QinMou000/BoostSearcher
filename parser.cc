@@ -30,7 +30,8 @@ int main()
   if (!EnumFile(src_path, &file_list))
   {
     // std::cerr << "EnumFile fail " << std::endl;
-    LOG(FATAL, "EnumFile fail ");
+    // LOG(FATAL, "EnumFile fail ");
+    LOG(LogLevel::FATAL) << "EnumFile fail ";
     return 1;
   }
   // 2. 从 file_list 读取每个文件的内容并解析
@@ -38,14 +39,16 @@ int main()
   if (!ParseHtml(file_list, &results))
   {
     // std::cerr << "ParseHtml fail " << std::endl;
-    LOG(FATAL, "ParseHtml fail ");
+    // LOG(FATAL, "ParseHtml fail ");
+    LOG(LogLevel::FATAL) << "ParseHtml fail ";
     return 2;
   }
   // 3. 将解析完的文件内容写入到output 分隔符为 "\3" ascll码中的不可显字符都可
   if (!SaveHtml(results, output))
   {
     // std::cerr << "SaveHtml fail " << std::endl;
-    LOG(FATAL, "SaveHtml fail ");
+    // LOG(FATAL, "SaveHtml fail ");
+    LOG(LogLevel::FATAL) << "SaveHtml fail ";
     return 3;
   }
   return 0;
@@ -59,7 +62,8 @@ bool EnumFile(const std::string &src_path, std::vector<std::string> *file_list)
   if (!fs::exists(root_path))
   {
     // std::cerr << "Source file path error " << std::endl;
-    LOG(FATAL, "Source file path error ");
+    // LOG(FATAL, "Source file path error ");
+    LOG(LogLevel::FATAL) << "Source file path error ";
     return false;
   }
   // 定义一个空迭代器 用于判断遍历结束
@@ -197,7 +201,8 @@ bool SaveHtml(const std::vector<DocInfo_t> &results, const std::string &output)
   if (!out.is_open())
   {
     // std::cerr << "open file " << output << "fail" << std::endl;
-    LOG(FATAL, "open file " + output + "fail");
+    // LOG(FATAL, "open file " + output + "fail");
+    LOG(LogLevel::FATAL) << "open file " + output + "fail";
     return false;
   }
   for (auto &it : results)

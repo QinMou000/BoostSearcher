@@ -65,7 +65,8 @@ namespace ns_index
             if (doc_id >= forward_index.size())
             {
                 // std::cerr << "doc_id out of range " << std::endl;
-                LOG(WARNING, "doc_id out of range ");
+                // LOG(WARNING, "doc_id out of range ");
+                LOG(LogLevel::WARNING) << "doc_id out of range ";
                 return nullptr;
             }
             return &forward_index[doc_id];
@@ -78,7 +79,8 @@ namespace ns_index
             if (ret == inverted_index.end())
             {
                 // std::cerr << "can't find this word: " << word << " in inverted_index" << std::endl;
-                LOG(WARNING, "can't find this word: " + word + " in inverted_index");
+                // LOG(WARNING, "can't find this word: " + word + " in inverted_index");
+                LOG(LogLevel::WARNING) << "can't find this word: " + word + " in inverted_index";
                 return nullptr;
             }
             return &ret->second;
@@ -103,7 +105,8 @@ namespace ns_index
             if (!in.is_open())
             {
                 // std::cerr << "open file : " << raw_file_path << " fail " << std::endl;
-                LOG(FATAL, "open file : " + raw_file_path + " fail ");
+                // LOG(FATAL, "open file : " + raw_file_path + " fail ");
+                LOG(LogLevel::FATAL) << "open file : " + raw_file_path + " fail ";
                 return false;
             }
             int cnt = 0;
@@ -114,7 +117,8 @@ namespace ns_index
                 if (!doc)
                 {
                     // std::cerr << "BuildFowardIndex " << line << "fail" << std::endl;
-                    LOG(ERROR, "BuildFowardIndex " + line + "fail");
+                    // LOG(ERROR, "BuildFowardIndex " + line + "fail");
+                    LOG(LogLevel::ERROR) << "BuildFowardIndex " + line + "fail";
                     return false;
                 }
                 BuildInvertedIndex(*doc);
@@ -122,7 +126,8 @@ namespace ns_index
                 if (cnt % 50 == 0)
                 {
                     // std::cout << "已建立索引:" << cnt << std::endl; // TODO 引入日志
-                    LOG(INFO, "已建立索引" + std::to_string(cnt));
+                    // LOG(INFO, "已建立索引" + std::to_string(cnt));
+                    LOG(LogLevel::INFO) << "已建立索引" + std::to_string(cnt);
                 }
             }
             return true;
@@ -156,7 +161,8 @@ namespace ns_index
             // 检查分割结果是否足够
             if (result.size() < 3)
             {
-                LOG(ERROR, "Split line failed, not enough fields: " + line);
+                // LOG(ERROR, "Split line failed, not enough fields: " + line);
+                LOG(LogLevel::ERROR) << "Split line failed, not enough fields: " + line;
                 return nullptr;
             }
 

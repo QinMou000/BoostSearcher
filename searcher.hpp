@@ -21,15 +21,17 @@ namespace ns_searcher
             if (index == nullptr)
             {
                 // std::cerr << "获取单例失败" << std::endl;
-                LOG(FATAL, "获取单例失败");
+                LOG(LogLevel::FATAL) << "获取单例失败";
                 exit(1);
             }
             // std::cout << "获取单例成功" << std::endl;
-            LOG(INFO, "获取单例成功");
+            // LOG(INFO, "获取单例成功");
+            LOG(LogLevel::INFO) << "获取单例成功";
             // 建立索引
             index->BuildIndex(raw_file_path);
             // std::cout << "建立索引成功" << std::endl;
-            LOG(INFO, "建立索引成功");
+            // LOG(INFO, "建立索引成功");
+            LOG(LogLevel::INFO) << "建立索引成功";
         }
         // 用户给我一个关键字 我返回一个 json 串
         /**
@@ -48,6 +50,9 @@ namespace ns_searcher
             // 对关键字进行切词
             std::vector<std::string> words;
             Jieba_util::CutString(query, &words);
+
+            // for (auto word : words)
+            //     LOG(LogLevel::DEBUG) << word;
 
             struct invertedElem_to_merge
             {
@@ -78,10 +83,18 @@ namespace ns_searcher
 
                 // inverted_list_all.insert(inverted_list_all.end(), inverted_list->begin(), inverted_list->end()); // 将找到的倒排拉链里面的元素都插进新的拉链里面
             }
+
+            if (map.empty()) // 如果map没有东西直接返回
+            {
+                LOG(LogLevel::WARNING) << "No relavent words";
+                return;
+            }
+
             std::vector<invertedElem_to_merge> inverted_list_all;
             for (auto &item : map)
             {
                 inverted_list_all.emplace_back(item.second);
+                // LOG(LogLevel::INFO) << item.second.Words;// 搜索不存在的word时这个里面没有东西
             }
             // 保留100个结果
             inverted_list_all.resize(100);
@@ -102,7 +115,8 @@ namespace ns_searcher
                 if (item.Words.empty())
                 {
                     // std::cerr << "No relavent words" << std::endl;
-                    LOG(WARNING, "No relavent words");
+                    // LOG(WARNING, "No relavent words");
+                    LOG(LogLevel::WARNING) << "No relavent words";
                 }
                 else
                     it["desc"] = GetAbstract(doc->content /*这里不能拿网页原始内容需要转小写 */,

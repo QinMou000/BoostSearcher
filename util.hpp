@@ -4,6 +4,7 @@
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include "cppjieba/Jieba.hpp"
+#include "log.hpp"
 
 class File_Util
 {
@@ -13,7 +14,8 @@ public:
         std::ifstream in(file_name, std::ios::in); // 以输入模式(读)打开 file_name 文件
         if (!in.is_open())
         {
-            std::cerr << "open file : " << file_name << " fail " << std::endl;
+            // std::cerr << "open file : " << file_name << " fail " << std::endl;
+            LOG(LogLevel::WARNING) << "open file : " << file_name << " fail ";
             return false;
         }
 
