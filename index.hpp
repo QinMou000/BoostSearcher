@@ -8,18 +8,15 @@
 #include "util.hpp"
 #include "log.hpp"
 
-namespace ns_index
-{
-    struct DocInfo
-    {
+namespace ns_index {
+    struct DocInfo {
         std::string title;   // 文档标题
         std::string content; // 文档内容
         std::string url;     // 文档地址
         uint64_t doc_id;     // 文档 id
     };
 
-    struct InvertedElem
-    {
+    struct InvertedElem {
         uint64_t doc_id;
         std::string word;
         int weight; // 权重
@@ -27,12 +24,11 @@ namespace ns_index
 
     typedef std::vector<InvertedElem> InvertedList; // 倒排拉链
 
-    class Index
-    {
-    private:
+    class Index {
+      private:
         std::vector<DocInfo> forward_index;                           // 正排索引 用数组下表作为文档 id
         std::unordered_map<std::string, InvertedList> inverted_index; // 倒排索引 一个 word 和一组(almost) InvertedList 对应 (关键字和倒排拉链的映射 )
-    private:
+      private:
         Index() {}
         Index(Index &index) = delete;
         Index &operator=(const Index &index) = delete;
@@ -40,15 +36,12 @@ namespace ns_index
         static Index *instance;
         static std::mutex mtx;
 
-    public:
-        static Index *GetInstance()
-        {
+      public:
+        static Index *GetInstance() {
             // 外面再包一层 可以挡住绝大部分线程 不用让那么多线程到锁那里去排队
-            if (instance == nullptr)
-            {
+            if (instance == nullptr) {
                 mtx.lock(); // 加锁
-                if (instance == nullptr)
-                {
+                if (instance == nullptr) {
                     instance = new Index;
                 }
                 mtx.unlock();
@@ -59,11 +52,9 @@ namespace ns_index
         ~Index() {}
 
         // 根据 doc_id 找到文档
-        DocInfo *GetForwardIndex(uint64_t doc_id)
-        {
+        DocInfo *GetForwardIndex(uint64_t doc_id) {
             // 判断 doc_id 是否超出范围
-            if (doc_id >= forward_index.size())
-            {
+            if (doc_id >= forward_index.size()) {
                 // std::cerr << "doc_id out of range " << std::endl;
                 LOG(WARNING, "doc_id out of range ");
                 return nullptr;
@@ -72,11 +63,9 @@ namespace ns_index
         }
 
         // 根据 word 找到倒排拉链
-        InvertedList *GetInvertedList(std::string &word)
-        {
+        InvertedList *GetInvertedList(std::string &word) {
             auto ret = inverted_index.find(word);
-            if (ret == inverted_index.end())
-            {
+            if (ret == inverted_index.end()) {
                 // std::cerr << "can't find this word: " << word << " in inverted_index" << std::endl;
                 LOG(WARNING, "can't find this word: " + word + " in inverted_index");
                 return nullptr;
@@ -96,31 +85,26 @@ namespace ns_index
          * @param raw_file_path The path to the raw input file containing document data.
          * @return true if the index was built successfully; false otherwise.
          */
-        bool BuildIndex(const std::string &raw_file_path)
-        {
+        bool BuildIndex(const std::string &raw_file_path) {
             // 打开文件
             std::ifstream in(raw_file_path, std::ios::in | std::ios::binary);
-            if (!in.is_open())
-            {
+            if (!in.is_open()) {
                 // std::cerr << "open file : " << raw_file_path << " fail " << std::endl;
                 LOG(FATAL, "open file : " + raw_file_path + " fail ");
                 return false;
             }
             int cnt = 0;
             std::string line;
-            while (std::getline(in, line)) // 文件按行读取
-            {
+            while (std::getline(in, line)) { // 文件按行读取
                 DocInfo *doc = BuildForwardIndex(line);
-                if (!doc)
-                {
+                if (!doc) {
                     // std::cerr << "BuildFowardIndex " << line << "fail" << std::endl;
                     LOG(ERROR, "BuildFowardIndex " + line + "fail");
                     return false;
                 }
                 BuildInvertedIndex(*doc);
                 cnt++;
-                if (cnt % 50 == 0)
-                {
+                if (cnt % 50 == 0) {
                     // std::cout << "已建立索引:" << cnt << std::endl; // TODO 引入日志
                     LOG(INFO, "已建立索引" + std::to_string(cnt));
                 }
@@ -128,7 +112,7 @@ namespace ns_index
             return true;
         }
 
-    private:
+      private:
         /**
          * @brief Builds a forward index entry from a line of text.
          *
@@ -146,16 +130,14 @@ namespace ns_index
         /*
             title\3content\3url\n title\3content\3url\n title\3content\3url\n
         */
-        DocInfo *BuildForwardIndex(std::string &line)
-        {
+        DocInfo *BuildForwardIndex(std::string &line) {
             // 根据分隔符 拆分成几个小字符串
             const std::string sep = "\3";
             std::vector<std::string> result;
             String_Util::Split(line, &result, sep);
 
             // 检查分割结果是否足够
-            if (result.size() < 3)
-            {
+            if (result.size() < 3) {
                 LOG(ERROR, "Split line failed, not enough fields: " + line);
                 return nullptr;
             }
@@ -185,10 +167,8 @@ namespace ns_index
          * @param doc The document information containing doc_id, title, content, and url.
          * @return true if the inverted index was built successfully.
          */
-        bool BuildInvertedIndex(const DocInfo doc)
-        {
-            struct word_count
-            {
+        bool BuildInvertedIndex(const DocInfo doc) {
+            struct word_count {
                 int title_count = 0;
                 int content_count = 0;
             };
@@ -204,16 +184,14 @@ namespace ns_index
 
             std::vector<std::string> title_words;
             Jieba_util::CutString(doc.title, &title_words); // 对标题进行切分
-            for (auto word : title_words)
-            {
+            for (auto word : title_words) {
                 boost::to_lower(word);        // 将词统一转成小写
                 word_map[word].title_count++; // 插入词和出现次数的映射表中
             }
             // 同理将内容的次数统计好
             std::vector<std::string> content_words;
             Jieba_util::CutString(doc.content, &content_words);
-            for (auto word : content_words)
-            {
+            for (auto word : content_words) {
                 boost::to_lower(word);
                 word_map[word].content_count++;
             }
@@ -227,8 +205,7 @@ namespace ns_index
             //     std::cout << doc.title << std::endl;
             // }
             // TODEBUG
-            for (auto &pair : word_map) // 这里是每一个词和他在这个文档中出现次数的映射
-            {
+            for (auto &pair : word_map) { // 这里是每一个词和他在这个文档中出现次数的映射
                 // 我们要将这个得到一个倒排拉链里面的一个元素
                 InvertedElem inverted_elem;
                 inverted_elem.doc_id = doc.doc_id; // 这里就将DocInfo中的id用上了

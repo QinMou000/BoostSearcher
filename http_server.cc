@@ -1,3 +1,11 @@
+/*
+ * @Author: wang-qin928 2830862261@qq.com
+ * @Date: 2025-10-09 21:52:01
+ * @LastEditors: wang-qin928 2830862261@qq.com
+ * @LastEditTime: 2025-12-23 11:20:42
+ * @FilePath: \boost-searcher\http_server.cc
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #include "searcher.hpp"
 #include "httplib.h"
 #include "log.hpp"
@@ -5,27 +13,25 @@
 const std::string raw = "./data/raw_html/raw.txt"; // 解析完的内容
 const std::string root_path = "./wwwroot";
 
-int main()
-{
+int main() {
     ns_searcher::Searcher searcher;
     searcher.InitSearcher(raw);
 
     httplib::Server svr;
     svr.set_base_dir(root_path.c_str());
 
-    svr.Get("/s", [&](const httplib::Request &req, httplib::Response &res)
-            { 
-                if(!req.has_param("word"))
-                {
-                    res.set_content("请输入搜索关键字 ", "text/plain; charset=utf-8");
-                    return ;
-                } 
-                std::string word = req.get_param_value("word");
-                // std::cout << "用户搜索:" << word << std::endl;
-                LOG(INFO, "用户搜索: " + word);
-                std::string json_string;
-                searcher.Search(word,&json_string); 
-                res.set_content(json_string,"application/json"); });
+    svr.Get("/s", [&](const httplib::Request & req, httplib::Response & res) {
+        if(!req.has_param("word")) {
+            res.set_content("请输入搜索关键字 ", "text/plain; charset=utf-8");
+            return ;
+        }
+        std::string word = req.get_param_value("word");
+        // std::cout << "用户搜索:" << word << std::endl;
+        LOG(INFO, "用户搜索: " + word);
+        std::string json_string;
+        searcher.Search(word, &json_string);
+        res.set_content(json_string, "application/json");
+    });
 
     svr.listen("0.0.0.0", 8080);
     return 0;
