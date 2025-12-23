@@ -2,7 +2,7 @@
  * @Author: wang-qin928 2830862261@qq.com
  * @Date: 2025-10-09 21:52:01
  * @LastEditors: wang-qin928 2830862261@qq.com
- * @LastEditTime: 2025-12-23 11:21:12
+ * @LastEditTime: 2025-12-23 11:27:18
  * @FilePath: \boost-searcher\util.hpp
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -18,15 +18,8 @@ class File_Util {
   public:
     static bool ReadFile(const std::string file_name, std::string *out) {
         std::ifstream in(file_name, std::ios::in); // 以输入模式(读)打开 file_name 文件
-<<<<<<< HEAD
         if (!in.is_open()) {
             std::cerr << "open file : " << file_name << " fail " << std::endl;
-=======
-        if (!in.is_open())
-        {
-            // std::cerr << "open file : " << file_name << " fail " << std::endl;
-            LOG(LogLevel::WARNING) << "open file : " << file_name << " fail ";
->>>>>>> 77b05d638f516fb3723e1d688b0ef4da4a9a5b5c
             return false;
         }
 

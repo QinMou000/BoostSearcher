@@ -9,15 +9,16 @@
 
 const std::string null_dev = "/dev/null";
 // 守护进程
-void daemon()
-{
+void daemon() {
     // 1. 忽略IO，子进程退出信号
     signal(SIGPIPE, SIG_IGN);
     signal(SIGCHLD, SIG_IGN);
 
     // 2. 新起一个进程，并退出父进程
-    if (fork() > 0)
+    if (fork() > 0) {
         exit(1);
+
+    }
 
     // 3. 新建一个会话
     setsid();
@@ -29,14 +30,12 @@ void daemon()
     // 建议重定向到 /dev/null 文件里（无底洞）
     int fd = ::open(null_dev.c_str(), O_RDWR);
     if (fd < 0)
-    {
-        // LOG(WARNING, "open dev/null error");
+    {     // LOG(WARNING, "open dev/null error");
         LOG(LogLevel::WARNING) << "open dev/null error";
     }
 
     else
-    {
-        dup2(fd, 0);
+    {     dup2(fd, 0);
         dup2(fd, 1);
         dup2(fd, 2);
         close(fd);

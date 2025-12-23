@@ -46,15 +46,7 @@ namespace ns_searcher {
             std::vector<std::string> words;
             Jieba_util::CutString(query, &words);
 
-<<<<<<< HEAD
             struct invertedElem_to_merge {
-=======
-            // for (auto word : words)
-            //     LOG(LogLevel::DEBUG) << word;
-
-            struct invertedElem_to_merge
-            {
->>>>>>> 77b05d638f516fb3723e1d688b0ef4da4a9a5b5c
                 uint64_t doc_id;                // 文档id
                 int sum_weight;                 // 这个文档在本次搜索中占的总权值
                 std::vector<std::string> Words; // 本次搜索被切分的词中和文档内容相关的词
