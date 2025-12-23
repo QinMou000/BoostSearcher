@@ -12,13 +12,21 @@
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include "cppjieba/Jieba.hpp"
+#include "log.hpp"
 
 class File_Util {
   public:
     static bool ReadFile(const std::string file_name, std::string *out) {
         std::ifstream in(file_name, std::ios::in); // 以输入模式(读)打开 file_name 文件
+<<<<<<< HEAD
         if (!in.is_open()) {
             std::cerr << "open file : " << file_name << " fail " << std::endl;
+=======
+        if (!in.is_open())
+        {
+            // std::cerr << "open file : " << file_name << " fail " << std::endl;
+            LOG(LogLevel::WARNING) << "open file : " << file_name << " fail ";
+>>>>>>> 77b05d638f516fb3723e1d688b0ef4da4a9a5b5c
             return false;
         }
 

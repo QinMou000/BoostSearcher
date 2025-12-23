@@ -2,7 +2,7 @@
 #include "index.hpp"
 #include "log.hpp"
 #include <algorithm>
-#include <json/json.h>
+#include <jsoncpp/json/json.h>
 
 namespace ns_searcher {
     class Searcher {
@@ -17,15 +17,17 @@ namespace ns_searcher {
             index = ns_index::Index::GetInstance();
             if (index == nullptr) {
                 // std::cerr << "获取单例失败" << std::endl;
-                LOG(FATAL, "获取单例失败");
+                LOG(LogLevel::FATAL) << "获取单例失败";
                 exit(1);
             }
             // std::cout << "获取单例成功" << std::endl;
-            LOG(INFO, "获取单例成功");
+            // LOG(INFO, "获取单例成功");
+            LOG(LogLevel::INFO) << "获取单例成功";
             // 建立索引
             index->BuildIndex(raw_file_path);
             // std::cout << "建立索引成功" << std::endl;
-            LOG(INFO, "建立索引成功");
+            // LOG(INFO, "建立索引成功");
+            LOG(LogLevel::INFO) << "建立索引成功";
         }
         // 用户给我一个关键字 我返回一个 json 串
         /**
@@ -44,7 +46,15 @@ namespace ns_searcher {
             std::vector<std::string> words;
             Jieba_util::CutString(query, &words);
 
+<<<<<<< HEAD
             struct invertedElem_to_merge {
+=======
+            // for (auto word : words)
+            //     LOG(LogLevel::DEBUG) << word;
+
+            struct invertedElem_to_merge
+            {
+>>>>>>> 77b05d638f516fb3723e1d688b0ef4da4a9a5b5c
                 uint64_t doc_id;                // 文档id
                 int sum_weight;                 // 这个文档在本次搜索中占的总权值
                 std::vector<std::string> Words; // 本次搜索被切分的词中和文档内容相关的词
@@ -71,9 +81,17 @@ namespace ns_searcher {
 
                 // inverted_list_all.insert(inverted_list_all.end(), inverted_list->begin(), inverted_list->end()); // 将找到的倒排拉链里面的元素都插进新的拉链里面
             }
+
+            if (map.empty()) // 如果map没有东西直接返回
+            {
+                LOG(LogLevel::WARNING) << "No relavent words";
+                return;
+            }
+
             std::vector<invertedElem_to_merge> inverted_list_all;
             for (auto &item : map) {
                 inverted_list_all.emplace_back(item.second);
+                // LOG(LogLevel::INFO) << item.second.Words;// 搜索不存在的word时这个里面没有东西
             }
             // 保留100个结果
             inverted_list_all.resize(100);
@@ -94,8 +112,15 @@ namespace ns_searcher {
                 it["title"] = doc->title;
                 if (item.Words.empty()) {
                     // std::cerr << "No relavent words" << std::endl;
+<<<<<<< HEAD
                     LOG(WARNING, "No relavent words");
                 } else
+=======
+                    // LOG(WARNING, "No relavent words");
+                    LOG(LogLevel::WARNING) << "No relavent words";
+                }
+                else
+>>>>>>> 77b05d638f516fb3723e1d688b0ef4da4a9a5b5c
                     it["desc"] = GetAbstract(doc->content /*这里不能拿网页原始内容需要转小写 */,
                                              item.Words[0] /*数组第一个词传进去找*/); // TODO 不能把全部内容都加进去 // 需要获取摘要
                 it["url"] = doc->url;

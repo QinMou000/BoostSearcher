@@ -56,7 +56,8 @@ namespace ns_index {
             // 判断 doc_id 是否超出范围
             if (doc_id >= forward_index.size()) {
                 // std::cerr << "doc_id out of range " << std::endl;
-                LOG(WARNING, "doc_id out of range ");
+                // LOG(WARNING, "doc_id out of range ");
+                LOG(LogLevel::WARNING) << "doc_id out of range ";
                 return nullptr;
             }
             return &forward_index[doc_id];
@@ -67,7 +68,8 @@ namespace ns_index {
             auto ret = inverted_index.find(word);
             if (ret == inverted_index.end()) {
                 // std::cerr << "can't find this word: " << word << " in inverted_index" << std::endl;
-                LOG(WARNING, "can't find this word: " + word + " in inverted_index");
+                // LOG(WARNING, "can't find this word: " + word + " in inverted_index");
+                LOG(LogLevel::WARNING) << "can't find this word: " + word + " in inverted_index";
                 return nullptr;
             }
             return &ret->second;
@@ -90,7 +92,8 @@ namespace ns_index {
             std::ifstream in(raw_file_path, std::ios::in | std::ios::binary);
             if (!in.is_open()) {
                 // std::cerr << "open file : " << raw_file_path << " fail " << std::endl;
-                LOG(FATAL, "open file : " + raw_file_path + " fail ");
+                // LOG(FATAL, "open file : " + raw_file_path + " fail ");
+                LOG(LogLevel::FATAL) << "open file : " + raw_file_path + " fail ";
                 return false;
             }
             int cnt = 0;
@@ -99,14 +102,16 @@ namespace ns_index {
                 DocInfo *doc = BuildForwardIndex(line);
                 if (!doc) {
                     // std::cerr << "BuildFowardIndex " << line << "fail" << std::endl;
-                    LOG(ERROR, "BuildFowardIndex " + line + "fail");
+                    // LOG(ERROR, "BuildFowardIndex " + line + "fail");
+                    LOG(LogLevel::ERROR) << "BuildFowardIndex " + line + "fail";
                     return false;
                 }
                 BuildInvertedIndex(*doc);
                 cnt++;
                 if (cnt % 50 == 0) {
                     // std::cout << "已建立索引:" << cnt << std::endl; // TODO 引入日志
-                    LOG(INFO, "已建立索引" + std::to_string(cnt));
+                    // LOG(INFO, "已建立索引" + std::to_string(cnt));
+                    LOG(LogLevel::INFO) << "已建立索引" + std::to_string(cnt);
                 }
             }
             return true;
@@ -137,8 +142,15 @@ namespace ns_index {
             String_Util::Split(line, &result, sep);
 
             // 检查分割结果是否足够
+<<<<<<< HEAD
             if (result.size() < 3) {
                 LOG(ERROR, "Split line failed, not enough fields: " + line);
+=======
+            if (result.size() < 3)
+            {
+                // LOG(ERROR, "Split line failed, not enough fields: " + line);
+                LOG(LogLevel::ERROR) << "Split line failed, not enough fields: " + line;
+>>>>>>> 77b05d638f516fb3723e1d688b0ef4da4a9a5b5c
                 return nullptr;
             }
 

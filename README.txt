@@ -38,7 +38,7 @@ Boost Searcher 项目说明
 
 编译与运行
 ----------
-1. 安装依赖（如 cppjieba）。
+1. 安装依赖 josn库 cppjieba库 boost开发库。
 2. 使用 `make` 命令编译项目：
    ```bash
    make
