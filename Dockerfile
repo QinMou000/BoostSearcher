@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM docker.io/library/ubuntu:22.04
 
 # 1. 安装构建和运行依赖
 RUN apt-get update && \
