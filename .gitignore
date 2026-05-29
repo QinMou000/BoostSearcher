@@ -33,17 +33,29 @@
 *.out
 *.app
 
-#Log files
+# Log files
 *.log
 
-# Json files
+# JSON files (configs are tracked, generated outputs are not)
 *.json
 
 # data
-/data/*
-/data/raw_html/raw.txt
+# data/
 
 # test
 /test
 
+# CMake build
+engine/build/
+
+# Python
+server/__pycache__/
+server/.venv/
+*.pyc
+
+# Node
+web/node_modules/
+web/dist/
+
 .clang-format
+build/

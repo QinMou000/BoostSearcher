@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/05-29-boost-searcher-ai-md/prd.md", "reason": "重构需求、架构决策和子任务清单"}
+{"file": ".trellis/tasks/05-29-boost-searcher-ai-md/research/backend-concurrency.md", "reason": "后端高并发方案、线程安全索引管理"}
+{"file": ".trellis/tasks/05-29-boost-searcher-ai-md/research/fuzzy-search.md", "reason": "模糊搜索技术选型和中文处理策略"}
+{"file": ".trellis/spec/backend/index.md", "reason": "后端编码规范和约定"}
