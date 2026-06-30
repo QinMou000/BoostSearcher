@@ -59,3 +59,5 @@ web/dist/
 
 .clang-format
 build/
+
+data/

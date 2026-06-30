@@ -1,6 +1,6 @@
 #include "searcher.hpp"
 
-const std::string raw = "./data/raw_html/raw.txt";
+const std::string raw = "../../data/raw.txt";
 
 int main() {
     ns_searcher::Searcher search;

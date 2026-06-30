@@ -84,7 +84,12 @@ Boost Searcher 是一个基于 C++14 的**本地文档搜索引擎**，用于对
 2. 在项目根目录执行编译：
 
    ```bash
-   make
+   # MSCV
+   mkdir build
+   cd build
+   cmake ../engine
+   msbuild boost-searcher.sln /m /p:Configuration=Debug
+   # msbuild boost-searcher.sln /m /p:Configuration=Release
    ```
 
    成功后会生成三个可执行文件：

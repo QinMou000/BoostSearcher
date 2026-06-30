@@ -13,6 +13,10 @@ set(ENGINE_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/third
 )
 
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # pthread（httplib 内部线程池需要，macOS 上自动链接，Linux 需显式查找）
 find_package(Threads REQUIRED)
 
