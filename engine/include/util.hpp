@@ -3,12 +3,18 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <algorithm>
 #include "cppjieba/Jieba.hpp"
 
 class File_Util {
   public:
+    static std::string PathToUtf8(const std::filesystem::path &path) {
+        auto value = path.u8string();
+        return std::string(value.begin(), value.end());
+    }
+
     static bool ReadFile(const std::string &file_name, std::string *out) {
         std::ifstream in(file_name, std::ios::in);
         if (!in.is_open()) {
@@ -23,11 +29,15 @@ class File_Util {
         return true;
     }
 
-    // 读取文件并保留换行符（适用于 Markdown 等需要按行解析的格式）
-    static bool ReadFileLines(const std::string &file_name, std::string *out) {
-        std::ifstream in(file_name, std::ios::in | std::ios::binary);
+    static bool ReadFileLines(const std::filesystem::path &file_path, std::string *out) {
+        if (out == nullptr) {
+            return false;
+        }
+        out->clear();
+
+        std::ifstream in(file_path, std::ios::in | std::ios::binary);
         if (!in.is_open()) {
-            std::cerr << "open file: " << file_name << " fail" << std::endl;
+            std::cerr << "open file: " << PathToUtf8(file_path) << " fail" << std::endl;
             return false;
         }
         std::ostringstream ss;
@@ -35,6 +45,14 @@ class File_Util {
         *out = ss.str();
         in.close();
         return true;
+    }
+
+    // 读取文件并保留换行符（适用于 Markdown 等需要按行解析的格式）
+    static bool ReadFileLines(const std::string &file_name, std::string *out) {
+        if (out == nullptr) {
+            return false;
+        }
+        return ReadFileLines(std::filesystem::path(file_name), out);
     }
 };
 

@@ -3,8 +3,8 @@
 #include "log.hpp"
 #include "daemon.hpp"
 
-const std::string raw = "../../data/raw.txt";
-const std::string root_path = "../../wwwroot";
+const std::string raw = "./data/raw.txt";
+const std::string root_path = "./wwwroot";
 
 int main() {
     daemon();
