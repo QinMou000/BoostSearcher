@@ -29,9 +29,8 @@ typedef std::vector<InvertedElem> InvertedList;
 
 class Index {
   private:
-    std::vector<DocInfo> forward_index; // 正排索引，用数组下标作为文档 id
-    std::unordered_map<std::string, InvertedList>
-        inverted_index; // 倒排索引，关键字到倒排拉链的映射
+    std::vector<DocInfo> forward_index;                           // 正排索引，用数组下标作为文档 id
+    std::unordered_map<std::string, InvertedList> inverted_index; // 倒排索引，关键字到倒排拉链的映射
 
     Index() {}
     Index(const Index &) = delete;
@@ -61,15 +60,41 @@ class Index {
         return &forward_index[doc_id];
     }
 
-    InvertedList *GetInvertedList(std::string &word) {
+    /**
+     * @brief 静默查找某个词对应的倒排拉链
+     *
+     * Searcher 在执行模糊搜索时，精确未命中是正常分支，不应该每次都打印
+     * warning；因此这里单独提供一个不打日志的查找接口。
+     */
+    InvertedList *FindInvertedList(const std::string &word) {
         auto ret = inverted_index.find(word);
         if (ret == inverted_index.end()) {
-            LOG(LogLevel::WARNING)
-                << "can't find word: " + word + " in inverted_index";
             return nullptr;
         }
         return &ret->second;
     }
+
+    /**
+     * @brief 查找倒排拉链，找不到时记录 warning
+     *
+     * 保留原来的带日志接口，方便调试真正“不应该缺失”的调用场景。
+     */
+    InvertedList *GetInvertedList(std::string &word) {
+        InvertedList *list = FindInvertedList(word);
+        if (list == nullptr) {
+            LOG(LogLevel::WARNING) << "can't find word: " + word + " in inverted_index";
+            return nullptr;
+        }
+        return list;
+    }
+
+    /**
+     * @brief 暴露完整倒排词典的只读视图
+     *
+     * 第一版模糊搜索直接遍历词典做候选召回。返回 const 引用可以避免拷贝
+     * 整个倒排索引，同时禁止调用方修改索引内容。
+     */
+    const std::unordered_map<std::string, InvertedList> &GetInvertedIndex() const { return inverted_index; }
 
     /**
      * @brief 从 raw 文件构建正排和倒排索引
@@ -88,8 +113,7 @@ class Index {
             DocInfo *doc = BuildForwardIndex(line);
             if (!doc) {
                 // 跳过格式异常的行，继续处理后续文档
-                LOG(LogLevel::WARNING)
-                    << "BuildForwardIndex fail, skipping line";
+                LOG(LogLevel::WARNING) << "BuildForwardIndex fail, skipping line";
                 continue;
             }
             BuildInvertedIndex(*doc);
@@ -162,8 +186,7 @@ class Index {
             InvertedElem elem;
             elem.doc_id = doc.doc_id;
             elem.word = pair.first;
-            elem.weight = pair.second.title_count * kTitleWeight +
-                          pair.second.content_count * kContentWeight;
+            elem.weight = pair.second.title_count * kTitleWeight + pair.second.content_count * kContentWeight;
             inverted_index[pair.first].emplace_back(elem);
         }
         return true;

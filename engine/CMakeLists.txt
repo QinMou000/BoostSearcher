@@ -36,3 +36,15 @@ add_executable(http_server src/http_server.cc)
 target_include_directories(http_server PRIVATE ${ENGINE_INCLUDE_DIRS})
 target_compile_definitions(http_server PRIVATE DICT_DIR="${DICT_DIR}")
 target_link_libraries(http_server PRIVATE Threads::Threads)
+
+# --- tests ---
+enable_testing()
+
+add_executable(searcher_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/searcher_tests.cc
+)
+target_include_directories(searcher_tests PRIVATE ${ENGINE_INCLUDE_DIRS})
+target_compile_definitions(searcher_tests PRIVATE DICT_DIR="${DICT_DIR}")
+target_link_libraries(searcher_tests PRIVATE Threads::Threads)
+
+add_test(NAME searcher_tests COMMAND searcher_tests)
