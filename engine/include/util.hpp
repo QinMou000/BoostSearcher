@@ -1,12 +1,12 @@
 #pragma once
+#include "cppjieba/Jieba.hpp"
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <algorithm>
-#include "cppjieba/Jieba.hpp"
 
 class File_Util {
   public:
@@ -29,7 +29,8 @@ class File_Util {
         return true;
     }
 
-    static bool ReadFileLines(const std::filesystem::path &file_path, std::string *out) {
+    static bool ReadFileLines(const std::filesystem::path &file_path,
+                              std::string *out) {
         if (out == nullptr) {
             return false;
         }
@@ -37,7 +38,8 @@ class File_Util {
 
         std::ifstream in(file_path, std::ios::in | std::ios::binary);
         if (!in.is_open()) {
-            std::cerr << "open file: " << PathToUtf8(file_path) << " fail" << std::endl;
+            std::cerr << "open file: " << PathToUtf8(file_path) << " fail"
+                      << std::endl;
             return false;
         }
         std::ostringstream ss;
@@ -91,16 +93,15 @@ class Jieba_util {
     static cppjieba::Jieba jieba;
 
   public:
-    static void CutString(const std::string &src, std::vector<std::string> *out) {
+    static void CutString(const std::string &src,
+                          std::vector<std::string> *out) {
         jieba.CutForSearch(src, *out);
     }
 };
 
 // 传入各词典文件的完整路径（DICT_DIR 由 CMake 传入绝对路径）
-cppjieba::Jieba Jieba_util::jieba(
-    DICT_DIR "/jieba.dict.utf8",
-    DICT_DIR "/hmm_model.utf8",
-    DICT_DIR "/user.dict.utf8",
-    DICT_DIR "/idf.utf8",
-    DICT_DIR "/stop_words.utf8"
-);
+cppjieba::Jieba Jieba_util::jieba(DICT_DIR "/jieba.dict.utf8",
+                                  DICT_DIR "/hmm_model.utf8",
+                                  DICT_DIR "/user.dict.utf8",
+                                  DICT_DIR "/idf.utf8",
+                                  DICT_DIR "/stop_words.utf8");

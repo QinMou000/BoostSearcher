@@ -46,7 +46,8 @@ class Searcher {
 
         for (std::string word : words) {
             std::transform(word.begin(), word.end(), word.begin(), ::tolower);
-            ns_index::InvertedList *inverted_list = index->GetInvertedList(word);
+            ns_index::InvertedList *inverted_list =
+                index->GetInvertedList(word);
             if (inverted_list == nullptr) {
                 continue;
             }
@@ -95,17 +96,17 @@ class Searcher {
             root.push_back(elem);
         }
 
-        *json = root.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+        *json =
+            root.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
     }
 
   private:
     // 根据关键词在文档中的位置，截取前后一定范围作为摘要
-    std::string GetAbstract(const std::string &content, const std::string &word) {
-        auto it = std::search(content.begin(), content.end(),
-                              word.begin(), word.end(),
-                              [](char x, char y) {
-                                  return std::tolower(x) == std::tolower(y);
-                              });
+    std::string GetAbstract(const std::string &content,
+                            const std::string &word) {
+        auto it = std::search(
+            content.begin(), content.end(), word.begin(), word.end(),
+            [](char x, char y) { return std::tolower(x) == std::tolower(y); });
         if (it == content.end()) {
             return "None";
         }

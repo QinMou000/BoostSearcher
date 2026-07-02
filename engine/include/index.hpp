@@ -1,14 +1,14 @@
 #pragma once
-#include <iostream>
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <fstream>
-#include <mutex>
+#include "log.hpp"
+#include "util.hpp"
 #include <algorithm>
 #include <cctype>
-#include "util.hpp"
-#include "log.hpp"
+#include <fstream>
+#include <iostream>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace ns_index {
 
@@ -29,8 +29,9 @@ typedef std::vector<InvertedElem> InvertedList;
 
 class Index {
   private:
-    std::vector<DocInfo> forward_index;                            // 正排索引，用数组下标作为文档 id
-    std::unordered_map<std::string, InvertedList> inverted_index;  // 倒排索引，关键字到倒排拉链的映射
+    std::vector<DocInfo> forward_index; // 正排索引，用数组下标作为文档 id
+    std::unordered_map<std::string, InvertedList>
+        inverted_index; // 倒排索引，关键字到倒排拉链的映射
 
     Index() {}
     Index(const Index &) = delete;
@@ -63,7 +64,8 @@ class Index {
     InvertedList *GetInvertedList(std::string &word) {
         auto ret = inverted_index.find(word);
         if (ret == inverted_index.end()) {
-            LOG(LogLevel::WARNING) << "can't find word: " + word + " in inverted_index";
+            LOG(LogLevel::WARNING)
+                << "can't find word: " + word + " in inverted_index";
             return nullptr;
         }
         return &ret->second;
@@ -86,12 +88,13 @@ class Index {
             DocInfo *doc = BuildForwardIndex(line);
             if (!doc) {
                 // 跳过格式异常的行，继续处理后续文档
-                LOG(LogLevel::WARNING) << "BuildForwardIndex fail, skipping line";
+                LOG(LogLevel::WARNING)
+                    << "BuildForwardIndex fail, skipping line";
                 continue;
             }
             BuildInvertedIndex(*doc);
             cnt++;
-            if (cnt % 50 == 0) {
+            if (cnt % 5 == 0) {
                 LOG(LogLevel::INFO) << "已建立索引: " + std::to_string(cnt);
             }
         }

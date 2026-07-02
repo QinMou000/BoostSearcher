@@ -1,7 +1,7 @@
-#include "searcher.hpp"
+#include "daemon.hpp"
 #include "httplib.h"
 #include "log.hpp"
-#include "daemon.hpp"
+#include "searcher.hpp"
 
 const std::string raw = "./data/raw.txt";
 const std::string root_path = "./wwwroot";

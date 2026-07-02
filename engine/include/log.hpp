@@ -8,6 +8,7 @@
 
 enum class LogLevel { NORMAL, INFO, DEBUG, WARNING, ERROR, FATAL };
 
+// clang-format off
 inline const char *LogLevelToString(LogLevel level) {
     switch (level) {
         case LogLevel::NORMAL:  return "NORMAL";
@@ -19,6 +20,7 @@ inline const char *LogLevelToString(LogLevel level) {
         default:                return "UNKNOWN";
     }
 }
+// clang-format on
 
 inline std::ostream *&GetLogOutputStream() {
     static std::ostream *stream = &std::cout;
@@ -36,19 +38,18 @@ class LogMessage {
     LogMessage(LogLevel level, const char *file, int line)
         : level_(level), file_(file), line_(line) {}
 
-    template <typename T>
-    LogMessage &operator<<(const T &value) {
+    template <typename T> LogMessage &operator<<(const T &value) {
         ss_ << value;
         return *this;
     }
 
     ~LogMessage() {
         std::lock_guard<std::mutex> lock(GetLogMutex());
-        *GetLogOutputStream() << "[" << LogLevelToString(level_) << "] "
-                              << "[" << std::time(nullptr) << "] "
-                              << "[" << ss_.str() << "] "
-                              << "[" << file_ << " : " << line_ << "]"
-                              << std::endl;
+        *GetLogOutputStream()
+            << "[" << LogLevelToString(level_) << "] "
+            << "[" << std::time(nullptr) << "] "
+            << "[" << ss_.str() << "] "
+            << "[" << file_ << " : " << line_ << "]" << std::endl;
     }
 
   private:

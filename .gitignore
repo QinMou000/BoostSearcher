@@ -57,7 +57,8 @@ server/.venv/
 web/node_modules/
 web/dist/
 
-.clang-format
 build/
 
 data/
+
+# 图片如何索引？模糊搜索？
