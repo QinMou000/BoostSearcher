@@ -12,6 +12,7 @@
 
 namespace fs = std::filesystem;
 
+const std::string data_root_path = "./data";     // 返回 URL 时使用的根目录
 const std::string md_src_path = "./data/raw/md"; // md 文档目录
 const std::string output = "./data/raw.txt";     // 解析完的内容
 
@@ -76,29 +77,29 @@ int main() {
 bool EnumFile(const std::string &src_path, const std::string &ext,
               std::vector<fs::path> *file_list) {
     if (file_list == nullptr) {
-        LOG(LogLevel::ERROR) << "EnumFile output list is null";
+        LOG(LogLevel::LOG_ERROR) << "EnumFile output list is null";
         return false;
     }
     file_list->clear();
 
     if (src_path.empty()) {
-        LOG(LogLevel::ERROR) << "EnumFile source path is empty";
+        LOG(LogLevel::LOG_ERROR) << "EnumFile source path is empty";
         return false;
     }
     if (ext.empty()) {
-        LOG(LogLevel::ERROR) << "EnumFile extension is empty";
+        LOG(LogLevel::LOG_ERROR) << "EnumFile extension is empty";
         return false;
     }
 
     try {
         fs::path root_path(src_path);
         if (!fs::exists(root_path)) {
-            LOG(LogLevel::ERROR)
+            LOG(LogLevel::LOG_ERROR)
                 << "EnumFile source path does not exist: " + src_path;
             return false;
         }
         if (!fs::is_directory(root_path)) {
-            LOG(LogLevel::ERROR)
+            LOG(LogLevel::LOG_ERROR)
                 << "EnumFile source path is not a directory: " + src_path;
             return false;
         }
@@ -113,11 +114,11 @@ bool EnumFile(const std::string &src_path, const std::string &ext,
             file_list->push_back(entry.path());
         }
     } catch (const fs::filesystem_error &e) {
-        LOG(LogLevel::ERROR)
+        LOG(LogLevel::LOG_ERROR)
             << std::string("EnumFile filesystem error: ") + e.what();
         return false;
     } catch (const std::exception &e) {
-        LOG(LogLevel::ERROR) << std::string("EnumFile error: ") + e.what();
+        LOG(LogLevel::LOG_ERROR) << std::string("EnumFile error: ") + e.what();
         return false;
     }
 
@@ -287,26 +288,26 @@ static std::string PathToGenericUtf8(const fs::path &path) {
 // 从文件路径生成文档 URL
 static std::string MdFileToUrl(const fs::path &file_name) {
     std::error_code ec;
-    fs::path relative = fs::relative(file_name, fs::path(md_src_path), ec);
+    fs::path relative = fs::relative(file_name, fs::path(data_root_path), ec);
     if (ec || relative.empty()) {
         LOG(LogLevel::WARNING)
             << "MD file path cannot be made relative: " + PathToUtf8(file_name);
         return PathToGenericUtf8(file_name.filename());
     }
 
-    return PathToGenericUtf8(relative);
+    return PathToGenericUtf8(fs::path("data") / relative);
 }
 
 bool ParseMd(const std::vector<fs::path> &file_list,
              std::vector<DocInfo_t> *results) {
     if (results == nullptr) {
-        LOG(LogLevel::ERROR) << "ParseMd results is null";
+        LOG(LogLevel::LOG_ERROR) << "ParseMd results is null";
         return false;
     }
     results->clear();
 
     if (file_list.empty()) {
-        LOG(LogLevel::ERROR) << "ParseMd file list is empty";
+        LOG(LogLevel::LOG_ERROR) << "ParseMd file list is empty";
         return false;
     }
 
@@ -369,11 +370,11 @@ bool ParseMd(const std::vector<fs::path> &file_list,
 bool SaveResults(const std::vector<DocInfo_t> &results,
                  const std::string &output) {
     if (output.empty()) {
-        LOG(LogLevel::ERROR) << "SaveResults output path is empty";
+        LOG(LogLevel::LOG_ERROR) << "SaveResults output path is empty";
         return false;
     }
     if (results.empty()) {
-        LOG(LogLevel::ERROR) << "SaveResults results is empty";
+        LOG(LogLevel::LOG_ERROR) << "SaveResults results is empty";
         return false;
     }
 
@@ -383,7 +384,7 @@ bool SaveResults(const std::vector<DocInfo_t> &results,
             fs::create_directories(output_path.parent_path());
         }
     } catch (const fs::filesystem_error &e) {
-        LOG(LogLevel::ERROR)
+        LOG(LogLevel::LOG_ERROR)
             << std::string("SaveResults create output directory fail: ") +
                    e.what();
         return false;
@@ -405,7 +406,7 @@ bool SaveResults(const std::vector<DocInfo_t> &results,
         out_line += "\n";
         out.write(out_line.c_str(), out_line.size());
         if (!out.good()) {
-            LOG(LogLevel::ERROR)
+            LOG(LogLevel::LOG_ERROR)
                 << "SaveResults write fail, output: " + output +
                        ", url: " + it.url;
             return false;
@@ -413,7 +414,7 @@ bool SaveResults(const std::vector<DocInfo_t> &results,
     }
     out.close();
     if (!out.good()) {
-        LOG(LogLevel::ERROR) << "SaveResults close fail, output: " + output;
+        LOG(LogLevel::LOG_ERROR) << "SaveResults close fail, output: " + output;
         return false;
     }
 

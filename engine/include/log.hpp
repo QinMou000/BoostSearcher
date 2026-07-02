@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-enum class LogLevel { NORMAL, INFO, DEBUG, WARNING, ERROR, FATAL };
+enum class LogLevel { NORMAL, INFO, DEBUG, WARNING, LOG_ERROR, FATAL };
 
 // clang-format off
 inline const char *LogLevelToString(LogLevel level) {
@@ -15,7 +15,7 @@ inline const char *LogLevelToString(LogLevel level) {
         case LogLevel::INFO:    return "INFO";
         case LogLevel::DEBUG:   return "DEBUG";
         case LogLevel::WARNING: return "WARNING";
-        case LogLevel::ERROR:   return "ERROR";
+        case LogLevel::LOG_ERROR: return "ERROR";
         case LogLevel::FATAL:   return "FATAL";
         default:                return "UNKNOWN";
     }

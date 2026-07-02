@@ -52,6 +52,7 @@ class Searcher {
                 continue;
             }
             for (auto &item : *inverted_list) {
+                // 将同一文档的结果合并，累加权重并记录匹配的关键词
                 auto &merged = result_map[item.doc_id];
                 merged.doc_id = item.doc_id;
                 merged.sum_weight += item.weight;

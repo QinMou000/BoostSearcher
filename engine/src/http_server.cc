@@ -22,7 +22,8 @@ int main() {
             return;
         }
         std::string word = req.get_param_value("word");
-        LOG(LogLevel::INFO) << "用户搜索: " + word;
+        LOG(LogLevel::INFO) << req.remote_addr << ":" << req.remote_port
+                            << " 用户搜索: " << word;
         std::string json_string;
         searcher.Search(word, &json_string);
         res.set_content(json_string, "application/json");

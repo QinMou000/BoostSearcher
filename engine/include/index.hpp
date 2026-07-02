@@ -111,7 +111,7 @@ class Index {
         std::vector<std::string> result;
         String_Util::Split(line, &result, sep);
         if (result.size() < 3) {
-            LOG(LogLevel::ERROR) << "Split line failed, not enough fields";
+            LOG(LogLevel::LOG_ERROR) << "Split line failed, not enough fields";
             return nullptr;
         }
 
@@ -139,9 +139,11 @@ class Index {
             int title_count = 0;
             int content_count = 0;
         };
-
+        // word_map存储当前文档中的 title_words和content_words 的数量
         std::unordered_map<std::string, WordCount> word_map;
 
+        // 我们分别对title和content按CutForSearch来切词
+        // 方便对当前文档的每一个词建立倒排索引
         std::vector<std::string> title_words;
         Jieba_util::CutString(doc.title, &title_words);
         for (auto word : title_words) {
