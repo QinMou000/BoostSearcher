@@ -32,7 +32,8 @@ Questions to answer:
 
 <!-- Patterns that must always be used -->
 
-(To be filled by the team)
+- 新增函数和关键逻辑语句必须添加简洁中文注释。注释说明代码意图、
+  交互行为或保护的边界，不要重复描述简单赋值。
 
 ---
 

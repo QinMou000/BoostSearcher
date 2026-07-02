@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章阅读 | Boost Searcher</title>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [["\\(", "\\)"], ["$", "$"]],
+                displayMath: [["\\[", "\\]"], ["$$", "$$"]],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+            }
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <!-- 使用 highlight.js 在前端给 Markdown 代码块做语法高亮。 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #ffffff;
+            --surface-soft: #ffffff;
+            --text: #202428;
+            --muted: #68737c;
+            --line: #dfe5e2;
+            --accent: #176f8f;
+            --accent-strong: #105775;
+            --code-bg: #eef2f4;
+            --shadow: 0 18px 48px rgba(20, 28, 34, 0.08);
+        }
+
+        [data-theme="dark"] {
+            --bg: #000000;
+            --surface: #000000;
+            --surface-soft: #000000;
+            --text: #e7ebef;
+            --muted: #aab3bb;
+            --line: #363d43;
+            --accent: #6ab6d6;
+            --accent-strong: #95d0ec;
+            --code-bg: #14181c;
+            --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            line-height: 1.75;
+        }
+
+        button { font: inherit; }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: var(--accent-strong);
+            text-decoration: underline;
+        }
+
+        .page {
+            width: min(1280px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 34px 0 30px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 28px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .topbar nav {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .topbar a { color: var(--muted); }
+
+        .theme-button {
+            display: inline-grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .article {
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .article-head {
+            padding: 42px 48px 26px;
+            border-bottom: 1px solid var(--line);
+            background: var(--surface);
+        }
+
+        .article-title {
+            margin: 0;
+            font-size: clamp(30px, 5vw, 46px);
+            font-weight: 600;
+            line-height: 1.22;
+        }
+
+        .article-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            margin-top: 13px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .article-body {
+            padding: 36px 48px 52px;
+            overflow-wrap: anywhere;
+        }
+
+        .article-body h1,
+        .article-body h2,
+        .article-body h3,
+        .article-body h4,
+        .article-body h5,
+        .article-body h6 {
+            margin: 1.45em 0 0.55em;
+            font-weight: 600;
+            line-height: 1.35;
+            scroll-margin-top: 24px;
+        }
+
+        .article-body h1 { font-size: 32px; }
+        .article-body h2 {
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--line);
+            font-size: 26px;
+        }
+        .article-body h3 { font-size: 22px; }
+        .article-body p { margin: 0 0 1em; }
+
+        .article-body ul,
+        .article-body ol {
+            margin: 0 0 1em 1.4em;
+            padding: 0;
+        }
+
+        .article-body blockquote {
+            margin: 1.2em 0;
+            border-left: 4px solid var(--accent);
+            padding: 10px 16px;
+            color: var(--muted);
+            background: var(--surface-soft);
+        }
+
+        .article-body blockquote p:last-child { margin-bottom: 0; }
+
+        .article-body pre {
+            margin: 1.2em 0;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--code-bg);
+            padding: 16px;
+            overflow: auto;
+            line-height: 1.55;
+        }
+
+        .article-body code {
+            border-radius: 4px;
+            background: var(--code-bg);
+            padding: 0.16em 0.34em;
+            font-family: Consolas, "Liberation Mono", monospace;
+            font-size: 0.92em;
+        }
+
+        .article-body pre code {
+            background: transparent;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        .article-body pre code.hljs {
+            background: transparent;
+        }
+
+        .article-body .table-wrap {
+            margin: 1.2em 0;
+            overflow-x: auto;
+        }
+
+        .article-body table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 15px;
+        }
+
+        .article-body th,
+        .article-body td {
+            border: 1px solid var(--line);
+            padding: 9px 12px;
+            vertical-align: top;
+        }
+
+        .article-body th {
+            background: var(--surface-soft);
+            font-weight: 600;
+        }
+
+        .article-body img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 18px auto;
+            border-radius: 6px;
+            box-shadow: 0 8px 28px rgba(20, 28, 34, 0.12);
+        }
+
+        .math-block {
+            margin: 1.1em 0;
+            overflow-x: auto;
+            text-align: center;
+        }
+
+        .toc {
+            position: fixed;
+            top: 92px;
+            right: max(24px, calc((100vw - 1280px) / 2 - 260px));
+            width: 220px;
+            max-height: none;
+            overflow: visible;
+            border-left: 1px solid var(--line);
+            padding: 2px 0 2px 18px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .toc-title {
+            margin: 0 0 12px;
+            color: var(--text);
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .toc-list {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .toc a {
+            display: block;
+            overflow: visible;
+            color: var(--muted);
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+
+        .toc a:hover {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .toc-level-1 { padding-left: 0; }
+        .toc-level-2 { padding-left: 10px; }
+        .toc-level-3,
+        .toc-level-4,
+        .toc-level-5,
+        .toc-level-6 { padding-left: 20px; }
+
+        .state {
+            display: grid;
+            min-height: 420px;
+            place-items: center;
+            padding: 44px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .state h1 {
+            margin: 0 0 10px;
+            color: var(--text);
+            font-size: 28px;
+        }
+
+        .footer {
+            margin-top: 34px;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 1780px) {
+            .toc {
+                position: static;
+                max-height: none;
+                border-left: 0;
+                border-top: 1px solid var(--line);
+                padding: 18px 0 0;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .page { width: min(100% - 22px, 920px); padding-top: 22px; }
+            .topbar { align-items: flex-start; flex-direction: column; }
+            .article-head, .article-body { padding-right: 22px; padding-left: 22px; }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page">
+        <header class="topbar">
+            <nav aria-label="站点导航">
+                <a href="/">首页</a>
+                <a href="javascript:history.back()">返回</a>
+            </nav>
+            <button class="theme-button" id="themeToggle" type="button" aria-label="切换深浅色主题">☾</button>
+        </header>
+
+        <div class="reader-layout">
+            <article class="article" id="article">
+                <div class="state">
+                    <div>
+                        <h1>正在加载文章...</h1>
+                        <p>请稍候。</p>
+                    </div>
+                </div>
+            </article>
+
+            <aside class="toc" id="toc" aria-label="文章目录"></aside>
+        </div>
+
+        <footer class="footer">© 2026 Boost Searcher · Theme inspired by Coder</footer>
+    </main>
+
+    <script>
+        const article = document.getElementById("article");
+        const toc = document.getElementById("toc");
+        const themeToggle = document.getElementById("themeToggle");
+        const params = new URLSearchParams(window.location.search);
+        const docPath = params.get("path") || "";
+        const docTitle = params.get("title") || deriveTitle(docPath) || "文章阅读";
+
+        initTheme();
+        themeToggle.addEventListener("click", toggleTheme);
+        loadArticle();
+
+        function initTheme() {
+            const saved = localStorage.getItem("boost-searcher-theme");
+            const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            setTheme(saved || (prefersDark ? "dark" : "light"));
+        }
+
+        function toggleTheme() {
+            const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+            setTheme(next);
+            localStorage.setItem("boost-searcher-theme", next);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.dataset.theme = theme;
+            themeToggle.textContent = theme === "dark" ? "☀" : "☾";
+        }
+
+        async function loadArticle() {
+            if (!docPath) {
+                renderState("没有选择文章", "请从首页搜索结果进入文章阅读页。");
+                return;
+            }
+
+            document.title = docTitle + " | Boost Searcher";
+            try {
+                const response = await fetch("/doc?path=" + encodeURIComponent(docPath), {
+                    headers: { "Accept": "text/plain" }
+                });
+                const markdown = await response.text();
+                if (!response.ok) {
+                    throw new Error(markdown || "文章内容暂时无法加载。");
+                }
+                renderArticle(markdown);
+            } catch (error) {
+                renderState("文章加载失败", error.message || "文章内容暂时无法加载。");
+            }
+        }
+
+        function renderArticle(markdown) {
+            const rendered = renderMarkdown(stripFrontMatter(markdown || ""));
+            article.innerHTML =
+                '<header class="article-head">' +
+                '<h1 class="article-title"></h1>' +
+                '<div class="article-meta"><span>Markdown</span><span></span></div>' +
+                '</header>' +
+                '<div class="article-body"></div>';
+            article.querySelector(".article-title").textContent = docTitle;
+            article.querySelector(".article-meta span:last-child").textContent = docPath;
+            article.querySelector(".article-body").innerHTML = rendered.html;
+            renderToc(rendered.toc);
+            // 文章 DOM 更新后再执行高亮，确保新插入的代码块能被处理。
+            applySyntaxHighlighting();
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([article]).catch(function() {});
+            }
+        }
+
+        function renderState(title, message) {
+            toc.innerHTML = "";
+            article.innerHTML =
+                '<div class="state"><div>' +
+                '<h1>' + escapeHtml(title) + '</h1>' +
+                '<p>' + escapeHtml(message) + '</p>' +
+                '</div></div>';
+        }
+
+        function deriveTitle(path) {
+            if (!path) return "";
+            const name = path.split(/[\\/]/).pop() || "";
+            return name.replace(/\.md$/i, "").replace(/[-_]+/g, " ");
+        }
+
+        function renderMarkdown(markdown) {
+            const lines = String(markdown).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+            const html = [];
+            const tocItems = [];
+            let inCode = false;
+            let codeLines = [];
+            // 记录 ```cpp 这类围栏语言，关闭代码块时写入 language-* class。
+            let codeLanguage = "";
+            let listType = "";
+            let mathDelimiter = "";
+            let mathLines = [];
+
+            function closeList() {
+                if (listType) {
+                    html.push("</" + listType + ">");
+                    listType = "";
+                }
+            }
+
+            function openList(type) {
+                if (listType !== type) {
+                    closeList();
+                    html.push("<" + type + ">");
+                    listType = type;
+                }
+            }
+
+            for (let index = 0; index < lines.length; index++) {
+                const line = lines[index];
+                const trimmed = line.trim();
+
+                if (mathDelimiter) {
+                    mathLines.push(line);
+                    if (trimmed === mathDelimiter) {
+                        html.push('<div class="math-block">' + escapeHtml(mathLines.join("\n")) + '</div>');
+                        mathDelimiter = "";
+                        mathLines = [];
+                    }
+                    continue;
+                }
+
+                if (trimmed === "$$" || trimmed === "\\[") {
+                    closeList();
+                    mathDelimiter = trimmed === "$$" ? "$$" : "\\]";
+                    mathLines = [line];
+                    continue;
+                }
+
+                // 识别 Markdown 代码围栏，并保留可选语言名用于后续高亮。
+                const codeFence = line.match(/^```\s*([A-Za-z0-9_+-]*)\s*$/);
+                if (codeFence) {
+                    if (inCode) {
+                        html.push(renderCodeBlock(codeLines.join("\n"), codeLanguage));
+                        codeLines = [];
+                        codeLanguage = "";
+                        inCode = false;
+                    } else {
+                        closeList();
+                        inCode = true;
+                        codeLanguage = codeFence[1] || "";
+                    }
+                    continue;
+                }
+
+                if (inCode) {
+                    codeLines.push(line);
+                    continue;
+                }
+
+                if (!trimmed) {
+                    closeList();
+                    continue;
+                }
+
+                // 表格需要前看下一行分隔符，所以在普通段落前优先识别。
+                if (isTableRow(line) && isTableSeparator(lines[index + 1] || "")) {
+                    closeList();
+                    const headerLine = line;
+                    const separatorLine = lines[index + 1];
+                    const bodyLines = [];
+                    index += 2;
+                    while (index < lines.length && isTableRow(lines[index])) {
+                        bodyLines.push(lines[index]);
+                        index++;
+                    }
+                    index--;
+                    html.push(renderTable(headerLine, separatorLine, bodyLines));
+                    continue;
+                }
+
+                const heading = line.match(/^(#{1,6})\s+(.+)$/);
+                if (heading) {
+                    closeList();
+                    const level = heading[1].length;
+                    const title = plainText(heading[2]);
+                    const id = "heading-" + tocItems.length;
+                    tocItems.push({ id: id, level: level, title: title });
+                    html.push("<h" + level + " id=\"" + id + "\">" + renderInline(heading[2]) + "</h" + level + ">");
+                    continue;
+                }
+
+                const quote = line.match(/^>\s?(.*)$/);
+                if (quote) {
+                    closeList();
+                    html.push("<blockquote><p>" + renderInline(quote[1]) + "</p></blockquote>");
+                    continue;
+                }
+
+                const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
+                if (unordered) {
+                    openList("ul");
+                    html.push("<li>" + renderInline(unordered[1]) + "</li>");
+                    continue;
+                }
+
+                const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+                if (ordered) {
+                    openList("ol");
+                    html.push("<li>" + renderInline(ordered[1]) + "</li>");
+                    continue;
+                }
+
+                closeList();
+                html.push("<p>" + renderInline(line) + "</p>");
+            }
+
+            if (inCode) html.push(renderCodeBlock(codeLines.join("\n"), codeLanguage));
+            if (mathDelimiter) html.push('<div class="math-block">' + escapeHtml(mathLines.join("\n")) + '</div>');
+            closeList();
+            return {
+                html: html.join("\n") || "<p>文章为空。</p>",
+                toc: tocItems
+            };
+        }
+
+        // 判断当前行是否像 Markdown 表格行，避免普通段落误入表格解析。
+        function isTableRow(line) {
+            const text = String(line || "").trim();
+            return text.includes("|") && text.replace(/\|/g, "").trim().length > 0;
+        }
+
+        // Markdown 表格第二行必须由 ---、:---、---: 或 :---: 组成。
+        function isTableSeparator(line) {
+            const cells = splitTableRow(line);
+            return cells.length > 0 && cells.every(function(cell) {
+                return /^:?-{3,}:?$/.test(cell);
+            });
+        }
+
+        // 去掉首尾管道后拆分单元格，保持和常见 Markdown 表格写法一致。
+        function splitTableRow(line) {
+            let text = String(line || "").trim();
+            if (text.startsWith("|")) text = text.slice(1);
+            if (text.endsWith("|")) text = text.slice(0, -1);
+            return text.split("|").map(function(cell) {
+                return cell.trim();
+            });
+        }
+
+        // 从分隔行提取对齐方式，并输出完整 table 结构。
+        function renderTable(headerLine, separatorLine, bodyLines) {
+            const headers = splitTableRow(headerLine);
+            const aligns = splitTableRow(separatorLine).map(function(cell) {
+                if (/^:-{3,}:$/.test(cell)) return "center";
+                if (/^-{3,}:$/.test(cell)) return "right";
+                if (/^:-{3,}$/.test(cell)) return "left";
+                return "";
+            });
+            const headHtml = renderTableCells(headers, "th", aligns);
+            const bodyHtml = bodyLines.map(function(row) {
+                return "<tr>" + renderTableCells(splitTableRow(row), "td", aligns) + "</tr>";
+            }).join("");
+            return '<div class="table-wrap"><table><thead><tr>' + headHtml +
+                '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
+        }
+
+        // 单元格内容继续走行内 Markdown 渲染，保证链接、加粗和代码仍然可用。
+        function renderTableCells(cells, tagName, aligns) {
+            return cells.map(function(cell, index) {
+                const align = aligns[index] ? ' style="text-align:' + aligns[index] + '"' : "";
+                return "<" + tagName + align + ">" + renderInline(cell) + "</" + tagName + ">";
+            }).join("");
+        }
+
+        // 输出带语言 class 的代码块，供 highlight.js 选择对应语法规则。
+        function renderCodeBlock(code, language) {
+            const normalizedLanguage = normalizeCodeLanguage(language);
+            const className = normalizedLanguage ? ' class="language-' + normalizedLanguage + '"' : "";
+            return "<pre><code" + className + ">" + escapeHtml(code) + "</code></pre>";
+        }
+
+        // 规范化常见语言别名，避免 cpp/c++ 等写法无法命中高亮规则。
+        function normalizeCodeLanguage(language) {
+            const lang = String(language || "").trim().toLowerCase();
+            const aliases = {
+                "c++": "cpp",
+                "js": "javascript",
+                "ts": "typescript",
+                "py": "python",
+                "sh": "bash",
+                "shell": "bash"
+            };
+            return aliases[lang] || lang.replace(/[^a-z0-9_-]/g, "");
+        }
+
+        // highlight.js 是 defer 外部脚本，未加载完成时延后到 load 后再补一次。
+        function applySyntaxHighlighting() {
+            if (!window.hljs) {
+                window.addEventListener("load", applySyntaxHighlighting, { once: true });
+                return;
+            }
+            article.querySelectorAll("pre code").forEach(function(block) {
+                window.hljs.highlightElement(block);
+            });
+        }
+
+        function stripFrontMatter(markdown) {
+            const text = String(markdown).replace(/^\uFEFF/, "");
+            const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+            if (lines[0] && lines[0].trim() === "---") {
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === "---") {
+                        return lines.slice(i + 1).join("\n").replace(/^\s+/, "");
+                    }
+                }
+            }
+            return text;
+        }
+
+        function renderToc(items) {
+            const visibleItems = items.filter(function(item) {
+                return item.level <= 4;
+            });
+            if (visibleItems.length === 0) {
+                toc.innerHTML = "";
+                return;
+            }
+
+            toc.innerHTML =
+                '<h2 class="toc-title">目录</h2>' +
+                '<ol class="toc-list">' +
+                visibleItems.map(function(item) {
+                    return '<li class="toc-level-' + item.level + '">' +
+                        '<a href="#' + item.id + '" title="' + escapeAttribute(item.title) + '">' +
+                        escapeHtml(item.title) +
+                        '</a></li>';
+                }).join("") +
+                '</ol>';
+        }
+
+        function plainText(markdownText) {
+            return String(markdownText)
+                .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+                .replace(/[`*_~#]/g, "")
+                .trim() || "未命名标题";
+        }
+
+        function renderInline(text) {
+            const tokens = [];
+
+            function stash(html) {
+                const token = "\u0000TOKEN" + tokens.length + "\u0000";
+                tokens.push(html);
+                return token;
+            }
+
+            let source = String(text);
+            source = source.replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, function(match, src) {
+                const altMatch = match.match(/\balt=["']([^"']*)["']/i);
+                return stash(renderImage(src, altMatch ? altMatch[1] : ""));
+            });
+            source = source.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(_, alt, src) {
+                return stash(renderImage(src, alt));
+            });
+            source = source.replace(/`([^`]+)`/g, function(_, code) {
+                return stash("<code>" + escapeHtml(code) + "</code>");
+            });
+
+            let safe = escapeHtml(source);
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/g,
+                '<a href="$2" target="_blank" rel="noopener">$1</a>');
+            safe = safe.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+            safe = safe.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+            safe = safe.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+            safe = safe.replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
+
+            tokens.forEach(function(html, index) {
+                safe = safe.replace("\u0000TOKEN" + index + "\u0000", html);
+            });
+            return safe;
+        }
+
+        function renderImage(src, alt) {
+            const cleanSrc = sanitizeUrl(String(src).trim());
+            if (!cleanSrc) return "";
+            return '<img src="' + escapeAttribute(cleanSrc) + '" alt="' + escapeAttribute(alt || "图片") + '" loading="lazy">';
+        }
+
+        function sanitizeUrl(url) {
+            if (/^(https?:)?\/\//i.test(url) || url.startsWith("/")) return url;
+            return url.replace(/^\.\//, "");
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function escapeAttribute(value) {
+            return escapeHtml(value).replace(/`/g, "&#96;");
+        }
+    </script>
+</body>
+
+</html>

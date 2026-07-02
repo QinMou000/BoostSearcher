@@ -1,262 +1,362 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-    <title>Boost 搜索引擎</title>
+    <title>Boost Searcher</title>
     <style>
-        * {
+        :root {
+            --bg: #ffffff;
+            --surface: #ffffff;
+            --text: #202428;
+            --muted: #6b747c;
+            --line: #dfe5e2;
+            --accent: #176f8f;
+            --accent-strong: #105775;
+            --shadow: 0 18px 48px rgba(20, 28, 34, 0.08);
+        }
+
+        [data-theme="dark"] {
+            --bg: #000000;
+            --surface: #000000;
+            --text: #e7ebef;
+            --muted: #aab3bb;
+            --line: #363d43;
+            --accent: #6ab6d6;
+            --accent-strong: #95d0ec;
+            --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            line-height: 1.7;
         }
 
-        html,
-        body {
-            height: 100%;
-            font-family: Arial, sans-serif;
-        }
+        button, input { font: inherit; }
 
-        body {
-            padding: 20px;
-            background-color: #f8f9fa;
-        }
-
-        .container {
-            max-width: 800px;
+        .page {
+            width: min(900px, calc(100% - 32px));
             margin: 0 auto;
-            margin-top: 50px;
+            padding: 48px 0 32px;
         }
 
-        .header {
+        .site-header {
+            margin-bottom: 42px;
             text-align: center;
-            margin-bottom: 30px;
         }
 
-        .header h1 {
-            color: #4e6ef2;
-            font-size: 48px;
-            margin-bottom: 15px;
+        .site-title {
+            margin: 0;
+            font-size: clamp(34px, 6vw, 54px);
+            font-weight: 600;
+            line-height: 1.12;
         }
 
-        .container .search {
-            width: 100%;
-            height: 52px;
+        .site-subtitle {
+            margin: 12px 0 18px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .nav {
             display: flex;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            border-radius: 26px;
-            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            color: var(--muted);
+            font-size: 14px;
         }
 
-        .container .search input {
-            flex: 1;
-            height: 100%;
-            border: none;
-            padding: 0 20px;
-            font-size: 16px;
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+        }
+
+        .nav a:hover { color: var(--accent); }
+
+        .theme-button {
+            display: inline-grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .search-panel {
+            margin-bottom: 30px;
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 96px;
+            gap: 10px;
+        }
+
+        .search-input {
+            min-width: 0;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            padding: 11px 13px;
             outline: none;
         }
 
-        .container .search input:focus {
-            color: #333;
+        .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(23, 111, 143, 0.15);
         }
 
-        .container .search button {
-            width: 150px;
-            height: 100%;
-            background-color: #4e6ef2;
-            color: #FFF;
-            font-size: 16px;
-            border: none;
+        .search-button {
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            background: var(--accent);
+            color: #fff;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
 
-        .container .search button:hover {
-            background-color: #3a5edb;
+        .search-button:hover { background: var(--accent-strong); }
+
+        .status {
+            min-height: 24px;
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 14px;
         }
 
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
+        .archive-title {
+            margin: 0 0 8px;
+            font-size: 26px;
+            font-weight: 600;
         }
 
-        .container .result {
+        .result-list {
+            border-top: 1px solid var(--line);
+        }
+
+        .result-item {
+            display: grid;
+            grid-template-columns: 70px minmax(0, 1fr);
+            gap: 16px;
             width: 100%;
-            margin-top: 30px;
-        }
-
-        .container .result .item {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s;
-        }
-
-        .container .result .item:hover {
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-        }
-
-        .container .result .item a {
-            display: block;
+            padding: 18px 0;
+            border-bottom: 1px solid var(--line);
+            color: var(--text);
+            text-align: left;
             text-decoration: none;
-            font-size: 20px;
-            color: #1a0dab;
-            margin-bottom: 5px;
         }
 
-        .container .result .item a:hover {
-            text-decoration: underline;
+        .result-item:hover { color: var(--accent); }
+
+        .result-date {
+            color: var(--muted);
+            font-size: 13px;
         }
 
-        .container .result .item p {
-            font-size: 14px;
-            color: #545454;
-            line-height: 1.5;
-            margin-bottom: 5px;
-        }
-
-        .container .result .item i {
+        .result-title {
             display: block;
-            font-style: normal;
-            color: #006621;
+            margin-bottom: 4px;
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 1.45;
+        }
+
+        .result-desc {
+            display: -webkit-box;
+            overflow: hidden;
+            color: var(--muted);
             font-size: 14px;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
         }
 
-        .no-results {
+        .result-path {
+            display: block;
+            margin-top: 6px;
+            overflow: hidden;
+            color: var(--muted);
+            font-family: Consolas, "Liberation Mono", monospace;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .footer {
+            margin-top: 44px;
+            color: var(--muted);
+            font-size: 13px;
             text-align: center;
-            padding: 50px 0;
-            color: #666;
-            display: none;
         }
 
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .container {
-                width: 100%;
-                padding: 0 15px;
-            }
-
-            .header h1 {
-                font-size: 36px;
-            }
-
-            .container .search button {
-                width: 100px;
-                font-size: 14px;
-            }
+        @media (max-width: 560px) {
+            .page { width: min(100% - 22px, 900px); padding-top: 32px; }
+            .search-row { grid-template-columns: 1fr; }
+            .result-item { grid-template-columns: 48px minmax(0, 1fr); }
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Boost 搜索</h1>
-        </div>
-        <div class="search">
-            <input type="text" placeholder="请输入搜索关键字" id="searchInput">
-            <button onclick="Search()"><i class="fa fa-search"></i> 搜索一下</button>
-        </div>
+    <main class="page">
+        <header class="site-header">
+            <h1 class="site-title">Boost Searcher</h1>
+            <nav class="nav" aria-label="站点导航">
+                <button class="theme-button" id="themeToggle" type="button" aria-label="切换深浅色主题">☾</button>
+            </nav>
+        </header>
 
-        <div class="loading">
-            <i class="fa fa-circle-o-notch fa-spin"></i> 正在搜索中...
-        </div>
+        <section class="search-panel" aria-label="搜索">
+            <form id="searchForm">
+                <div class="search-row">
+                    <input class="search-input" id="searchInput" type="search" placeholder="输入关键词搜索文档" autocomplete="off">
+                    <button class="search-button" type="submit">搜索</button>
+                </div>
+                <div class="status" id="statusText">输入关键词后按 Enter 搜索。</div>
+            </form>
+        </section>
 
-        <div class="no-results">
-            <i class="fa fa-search-minus"></i> 没有找到相关结果
-        </div>
+        <section id="archives" aria-label="搜索结果">
+            <h2 class="archive-title">Archives</h2>
+            <div class="result-list" id="resultList"></div>
+        </section>
 
-        <div class="result">
-            <!-- 动态生成网页内容 -->
-        </div>
-    </div>
+        <footer class="footer">© 2026 Boost Searcher · Theme inspired by Coder</footer>
+    </main>
+
     <script>
-        // 使用jQuery的方式绑定键盘事件，更可靠
-        $(document).ready(function() {
-            // 为搜索输入框绑定键盘按下事件
-            $("#searchInput").keydown(function(event) {
-                // 检查是否按下的是Enter键（keyCode 13）
-                if (event.keyCode === 13) {
-                    // 阻止默认行为（避免表单提交等默认操作）
-                    event.preventDefault();
-                    // 执行搜索
-                    Search();
-                }
-            });
+        const form = document.getElementById("searchForm");
+        const input = document.getElementById("searchInput");
+        const statusText = document.getElementById("statusText");
+        const resultList = document.getElementById("resultList");
+        const themeToggle = document.getElementById("themeToggle");
+
+        initTheme();
+        form.addEventListener("submit", function(event) {
+            event.preventDefault();
+            searchDocs();
         });
+        themeToggle.addEventListener("click", toggleTheme);
 
-        function Search() {
-            let query = $("#searchInput").val();
-            console.log("query = " + query);
+        function initTheme() {
+            const saved = localStorage.getItem("boost-searcher-theme");
+            const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            setTheme(saved || (prefersDark ? "dark" : "light"));
+        }
 
-            // 显示加载状态
-            $(".loading").show();
-            // 隐藏无结果提示和之前的结果
-            $(".no-results").hide();
-            $(".result").empty();
+        function toggleTheme() {
+            const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+            setTheme(next);
+            localStorage.setItem("boost-searcher-theme", next);
+        }
 
-            // 如果查询为空，不执行搜索
-            if (!query.trim()) {
-                $(".loading").hide();
+        function setTheme(theme) {
+            document.documentElement.dataset.theme = theme;
+            themeToggle.textContent = theme === "dark" ? "☀" : "☾";
+        }
+
+        async function searchDocs() {
+            const query = input.value.trim();
+            resultList.innerHTML = "";
+            if (!query) {
+                statusText.textContent = "输入关键词后按 Enter 搜索。";
                 return;
             }
 
-            $.ajax({
-                type: "GET",
-                url: "/s?word=" + encodeURIComponent(query),
-                success: function (data) {
-                    console.log(data);
-                    // 隐藏加载状态
-                    $(".loading").hide();
-                    
-                    // 如果没有结果，显示无结果提示
-                    if (data.length === 0) {
-                        $(".no-results").show();
-                    } else {
-                        BuildHtml(data);
-                    }
-                },
-                error: function() {
-                    // 错误处理
-                    $(".loading").hide();
-                    $(".no-results").show();
+            statusText.textContent = "正在搜索...";
+            try {
+                const response = await fetch("/s?word=" + encodeURIComponent(query), {
+                    headers: { "Accept": "application/json" }
+                });
+                if (!response.ok) throw new Error("搜索请求失败");
+
+                const text = await response.text();
+                const results = text.trim() ? JSON.parse(text) : [];
+                if (!Array.isArray(results) || results.length === 0) {
+                    statusText.textContent = "没有找到相关文章。";
+                    return;
                 }
-            });
+
+                statusText.textContent = "共找到 " + results.length + " 篇文档。";
+                renderResults(results, query);
+            } catch (error) {
+                statusText.textContent = "搜索失败，请稍后再试。";
+            }
         }
 
-        function BuildHtml(data) {
-            let result_lable = $(".container .result");
-            result_lable.empty();
+        // 根据用户输入生成安全的关键词正则，支持空格分隔的多个关键词。
+        function buildKeywordRegex(keyword) {
+            const parts = String(keyword || "").trim().split(/\s+/).filter(Boolean).map(function(part) {
+                return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            });
+            return parts.length ? new RegExp("(" + parts.join("|") + ")", "gi") : null;
+        }
 
-            for (let elem of data) {
-                let a_lable = $("<a>", {
-                    text: elem.title,
-                    href: elem.url,
-                    target: "_blank"
-                });
-                let p_lable = $("<p>", {
-                    text: elem.desc
-                });
-                let i_lable = $("<i>", {
-                    text: elem.url
-                });
-                let div_lable = $("<div>", {
-                    class: "item"
-                });
-                a_lable.appendTo(div_lable);
-                p_lable.appendTo(div_lable);
-                i_lable.appendTo(div_lable);
-                div_lable.appendTo(result_lable);
+        // 用文本节点和 span 组合高亮结果，避免摘要内容绕过 HTML 转义。
+        function appendHighlightedText(parent, text, keywordRegex) {
+            const source = String(text || "");
+            if (!keywordRegex) {
+                parent.textContent = source;
+                return;
             }
+
+            let cursor = 0;
+            keywordRegex.lastIndex = 0;
+            source.replace(keywordRegex, function(match, _word, offset) {
+                if (offset > cursor) {
+                    parent.appendChild(document.createTextNode(source.slice(cursor, offset)));
+                }
+                const mark = document.createElement("span");
+                mark.style.color = "red";
+                mark.style.fontWeight = "600";
+                mark.textContent = match;
+                parent.appendChild(mark);
+                cursor = offset + match.length;
+                return match;
+            });
+            if (cursor < source.length) {
+                parent.appendChild(document.createTextNode(source.slice(cursor)));
+            }
+        }
+
+        function renderResults(results, keyword) {
+            const keywordRegex = buildKeywordRegex(keyword);
+            const fragment = document.createDocumentFragment();
+            results.forEach(function(item, index) {
+                const href = "/blog.html?path=" + encodeURIComponent(item.url || "") +
+                    "&title=" + encodeURIComponent(item.title || "");
+                const link = document.createElement("a");
+                link.className = "result-item";
+                link.href = href;
+                link.innerHTML =
+                    '<span class="result-date">' + String(index + 1).padStart(2, "0") + '</span>' +
+                    '<span>' +
+                    '<span class="result-title"></span>' +
+                    '<span class="result-desc"></span>' +
+                    '<span class="result-path"></span>' +
+                    '</span>';
+                appendHighlightedText(link.querySelector(".result-title"), item.title || "Untitled", keywordRegex);
+                appendHighlightedText(link.querySelector(".result-desc"), item.desc || "暂无摘要", keywordRegex);
+                link.querySelector(".result-path").textContent = item.url || "";
+                fragment.appendChild(link);
+            });
+            resultList.appendChild(fragment);
         }
     </script>
 </body>
