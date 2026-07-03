@@ -33,6 +33,13 @@
             --accent: #176f8f;
             --accent-strong: #105775;
             --code-bg: #eef2f4;
+            --syntax-text: #1f2937;
+            --syntax-keyword: #0369a1;
+            --syntax-string: #15803d;
+            --syntax-comment: #64748b;
+            --syntax-number: #b45309;
+            --jump-bg: #fff08a;
+            --jump-text: #111827;
             --shadow: 0 18px 48px rgba(20, 28, 34, 0.08);
         }
 
@@ -46,6 +53,13 @@
             --accent: #6ab6d6;
             --accent-strong: #95d0ec;
             --code-bg: #14181c;
+            --syntax-text: #d8dee9;
+            --syntax-keyword: #7dd3fc;
+            --syntax-string: #86efac;
+            --syntax-comment: #94a3b8;
+            --syntax-number: #fbbf24;
+            --jump-bg: #ffe66d;
+            --jump-text: #111827;
             --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
         }
 
@@ -173,9 +187,35 @@
         .article-body blockquote {
             margin: 1.2em 0;
             border-left: 4px solid var(--accent);
-            padding: 10px 16px;
+            border-radius: 0 8px 8px 0;
+            padding: 14px 18px;
             color: var(--muted);
             background: var(--surface-soft);
+        }
+
+        .article-body blockquote h1,
+        .article-body blockquote h2,
+        .article-body blockquote h3,
+        .article-body blockquote h4,
+        .article-body blockquote h5,
+        .article-body blockquote h6 {
+            margin-top: 0.35em;
+            color: var(--text);
+        }
+
+        .article-body blockquote h2 {
+            border-bottom: 0;
+            padding-bottom: 0;
+            font-size: 21px;
+        }
+
+        .article-body blockquote ul,
+        .article-body blockquote ol {
+            margin-bottom: 0.9em;
+        }
+
+        .article-body blockquote pre {
+            margin: 0.9em 0;
         }
 
         .article-body blockquote p:last-child { margin-bottom: 0; }
@@ -206,6 +246,22 @@
 
         .article-body pre code.hljs {
             background: transparent;
+        }
+
+        .article-body pre code.fallback-highlighted {
+            color: var(--syntax-text);
+        }
+
+        .syntax-keyword { color: var(--syntax-keyword); font-weight: 600; }
+        .syntax-string { color: var(--syntax-string); }
+        .syntax-comment { color: var(--syntax-comment); font-style: italic; }
+        .syntax-number { color: var(--syntax-number); }
+
+        .jump-highlight {
+            border-radius: 3px;
+            background: var(--jump-bg);
+            box-shadow: 0 0 0 2px var(--jump-bg);
+            color: var(--jump-text);
         }
 
         .article-body .table-wrap {
@@ -368,6 +424,8 @@
         const params = new URLSearchParams(window.location.search);
         const docPath = params.get("path") || "";
         const docTitle = params.get("title") || deriveTitle(docPath) || "文章阅读";
+        const jumpKeywords = parseJumpKeywords(params.get("keywords") || "");
+        const jumpDesc = params.get("desc") || "";
 
         initTheme();
         themeToggle.addEventListener("click", toggleTheme);
@@ -426,7 +484,9 @@
             // 文章 DOM 更新后再执行高亮，确保新插入的代码块能被处理。
             applySyntaxHighlighting();
             if (window.MathJax && window.MathJax.typesetPromise) {
-                window.MathJax.typesetPromise([article]).catch(function() {});
+                window.MathJax.typesetPromise([article]).then(scrollToJumpTarget).catch(scrollToJumpTarget);
+            } else {
+                scrollToJumpTarget();
             }
         }
 
@@ -439,13 +499,103 @@
                 '</div></div>';
         }
 
+        // 解析搜索页传来的关键词数组；旧链接或异常参数会退化为空数组。
+        function parseJumpKeywords(raw) {
+            if (!raw) return [];
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+            } catch (error) {
+                return String(raw).split(/\s+/).filter(Boolean);
+            }
+        }
+
+        // 汇总定位候选词：后端命中词优先，摘要文本只作为找不到关键词时的兜底。
+        function collectJumpCandidates() {
+            const seen = new Set();
+            return jumpKeywords.concat(buildDescJumpCandidates(jumpDesc)).map(function(value) {
+                return String(value || "").trim();
+            }).filter(function(value) {
+                if (!value || seen.has(value)) return false;
+                seen.add(value);
+                return true;
+            });
+        }
+
+        // 从摘要里提取较稳定的片段，避免整段摘要跨多个 DOM 节点导致无法命中。
+        function buildDescJumpCandidates(desc) {
+            const clean = String(desc || "").replace(/\s+/g, " ").trim();
+            if (!clean) return [];
+            const parts = clean.split(/[。！？；，、]+/).map(function(part) {
+                return part.trim();
+            }).filter(function(part) {
+                return part.length >= 4;
+            }).sort(function(left, right) {
+                return right.length - left.length;
+            });
+            return [clean.slice(0, 80)].concat(parts.slice(0, 3));
+        }
+
+        // 文章渲染完成后定位第一个命中词，并把它滚动到视口中间。
+        function scrollToJumpTarget() {
+            const body = article.querySelector(".article-body");
+            if (!body) return;
+            const candidates = collectJumpCandidates();
+            for (const candidate of candidates) {
+                const marker = markFirstTextMatch(body, candidate);
+                if (marker) {
+                    const scroll = function() {
+                        marker.scrollIntoView({ behavior: "smooth", block: "center" });
+                    };
+                    if (window.requestAnimationFrame) {
+                        window.requestAnimationFrame(scroll);
+                    } else {
+                        scroll();
+                    }
+                    return;
+                }
+            }
+        }
+
+        // 在正文文本节点中查找第一个匹配项，只包裹命中的文本节点，不重写整篇文章 HTML。
+        function markFirstTextMatch(root, keyword) {
+            const needle = String(keyword || "").trim();
+            if (!needle) return null;
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                acceptNode: function(node) {
+                    if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+                    if (node.parentElement && node.parentElement.closest(".jump-highlight")) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            });
+
+            const lowerNeedle = needle.toLowerCase();
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                const index = node.nodeValue.toLowerCase().indexOf(lowerNeedle);
+                if (index < 0) continue;
+
+                const range = document.createRange();
+                range.setStart(node, index);
+                range.setEnd(node, index + needle.length);
+                const marker = document.createElement("span");
+                marker.className = "jump-highlight";
+                range.surroundContents(marker);
+                return marker;
+            }
+            return null;
+        }
+
         function deriveTitle(path) {
             if (!path) return "";
             const name = path.split(/[\\/]/).pop() || "";
             return name.replace(/\.md$/i, "").replace(/[-_]+/g, " ");
         }
 
-        function renderMarkdown(markdown) {
+        function renderMarkdown(markdown, options) {
+            const collectToc = !options || options.collectToc !== false;
             const lines = String(markdown).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
             const html = [];
             const tocItems = [];
@@ -519,6 +669,19 @@
                     continue;
                 }
 
+                // 连续引用块整体递归渲染，保证引用内标题、列表、代码块和图片保持 Markdown 结构。
+                if (isBlockquoteLine(line)) {
+                    closeList();
+                    const quoteLines = [];
+                    while (index < lines.length && isBlockquoteLine(lines[index])) {
+                        quoteLines.push(stripBlockquoteMarker(lines[index]));
+                        index++;
+                    }
+                    index--;
+                    html.push(renderBlockquote(quoteLines));
+                    continue;
+                }
+
                 // 表格需要前看下一行分隔符，所以在普通段落前优先识别。
                 if (isTableRow(line) && isTableSeparator(lines[index + 1] || "")) {
                     closeList();
@@ -540,16 +703,13 @@
                     closeList();
                     const level = heading[1].length;
                     const title = plainText(heading[2]);
-                    const id = "heading-" + tocItems.length;
-                    tocItems.push({ id: id, level: level, title: title });
-                    html.push("<h" + level + " id=\"" + id + "\">" + renderInline(heading[2]) + "</h" + level + ">");
-                    continue;
-                }
-
-                const quote = line.match(/^>\s?(.*)$/);
-                if (quote) {
-                    closeList();
-                    html.push("<blockquote><p>" + renderInline(quote[1]) + "</p></blockquote>");
+                    if (collectToc) {
+                        const id = "heading-" + tocItems.length;
+                        tocItems.push({ id: id, level: level, title: title });
+                        html.push("<h" + level + " id=\"" + id + "\">" + renderInline(heading[2]) + "</h" + level + ">");
+                    } else {
+                        html.push("<h" + level + ">" + renderInline(heading[2]) + "</h" + level + ">");
+                    }
                     continue;
                 }
 
@@ -578,6 +738,22 @@
                 html: html.join("\n") || "<p>文章为空。</p>",
                 toc: tocItems
             };
+        }
+
+        // 判断行是否属于 Markdown 引用块，支持 ">" 和 "> 内容" 两种写法。
+        function isBlockquoteLine(line) {
+            return /^>\s?/.test(String(line || ""));
+        }
+
+        // 去掉引用块前缀，把内部内容交回 Markdown 渲染器继续解析。
+        function stripBlockquoteMarker(line) {
+            return String(line || "").replace(/^>\s?/, "");
+        }
+
+        // 引用块内部继续走 Markdown 渲染，但不把内部标题加入正文目录。
+        function renderBlockquote(lines) {
+            const inner = renderMarkdown(lines.join("\n"), { collectToc: false }).html;
+            return "<blockquote>" + inner + "</blockquote>";
         }
 
         // 判断当前行是否像 Markdown 表格行，避免普通段落误入表格解析。
@@ -650,15 +826,90 @@
             return aliases[lang] || lang.replace(/[^a-z0-9_-]/g, "");
         }
 
-        // highlight.js 是 defer 外部脚本，未加载完成时延后到 load 后再补一次。
+        // 优先使用 highlight.js；CDN 不可用时使用本地兜底规则，避免代码块一直纯文本显示。
         function applySyntaxHighlighting() {
-            if (!window.hljs) {
-                window.addEventListener("load", applySyntaxHighlighting, { once: true });
-                return;
-            }
             article.querySelectorAll("pre code").forEach(function(block) {
-                window.hljs.highlightElement(block);
+                if (window.hljs) {
+                    window.hljs.highlightElement(block);
+                } else {
+                    applyFallbackSyntaxHighlighting(block);
+                }
             });
+        }
+
+        // 本地兜底高亮只处理常见 token，保证离线或外链失败时仍有基础可读性。
+        function applyFallbackSyntaxHighlighting(block) {
+            const language = getCodeLanguage(block);
+            block.innerHTML = highlightCodeText(block.textContent, language);
+            block.classList.add("fallback-highlighted");
+        }
+
+        // 从 language-* class 中读取围栏语言，和 renderCodeBlock 输出保持一致。
+        function getCodeLanguage(block) {
+            const matched = String(block.className || "").match(/\blanguage-([a-z0-9_-]+)/i);
+            return matched ? matched[1].toLowerCase() : "";
+        }
+
+        // 对代码文本进行安全转义后再包裹 span，避免代码内容被当成 HTML 执行。
+        function highlightCodeText(code, language) {
+            const tokens = [];
+
+            function stash(className, text) {
+                const token = "\u0000CODETOKEN" + "A".repeat(tokens.length + 1) + "\u0000";
+                tokens.push({
+                    token: token,
+                    html: '<span class="' + className + '">' + escapeHtml(text) + '</span>'
+                });
+                return token;
+            }
+
+            let source = String(code || "");
+            source = source.replace(/("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)/g, function(match) {
+                return stash("syntax-string", match);
+            });
+            source = source.replace(/(\/\*[\s\S]*?\*\/|\/\/[^\n]*|#[^\n]*)/g, function(match) {
+                return stash("syntax-comment", match);
+            });
+
+            let safe = escapeHtml(source);
+            const keywords = getSyntaxKeywords(language);
+            if (keywords.length > 0) {
+                const keywordPattern = new RegExp("\\b(" + keywords.map(escapeRegExp).join("|") + ")\\b", "g");
+                safe = safe.replace(keywordPattern, '<span class="syntax-keyword">$1</span>');
+            }
+            safe = safe.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="syntax-number">$1</span>');
+
+            tokens.forEach(function(item) {
+                safe = safe.replace(item.token, item.html);
+            });
+            return safe;
+        }
+
+        // 按语言提供少量高频关键字；未知语言使用通用关键字，保持实现轻量。
+        function getSyntaxKeywords(language) {
+            const common = ["if", "else", "for", "while", "return", "break", "continue", "switch", "case", "default"];
+            const groups = {
+                cpp: common.concat(["include", "define", "using", "namespace", "class", "struct", "public", "private",
+                    "protected", "template", "typename", "const", "static", "void", "int", "long", "double", "float",
+                    "char", "bool", "auto", "new", "delete", "try", "catch", "throw", "nullptr", "true", "false"]),
+                c: common.concat(["include", "define", "struct", "typedef", "const", "static", "void", "int", "long",
+                    "double", "float", "char", "unsigned", "signed", "return"]),
+                javascript: common.concat(["const", "let", "var", "function", "class", "new", "this", "async", "await",
+                    "import", "export", "from", "true", "false", "null", "undefined"]),
+                typescript: common.concat(["const", "let", "var", "function", "class", "new", "this", "async", "await",
+                    "import", "export", "from", "interface", "type", "private", "public", "readonly"]),
+                python: ["def", "class", "if", "elif", "else", "for", "while", "return", "break", "continue", "import",
+                    "from", "as", "try", "except", "finally", "with", "lambda", "True", "False", "None"],
+                bash: ["if", "then", "else", "fi", "for", "while", "do", "done", "case", "esac", "function", "export"],
+                sql: ["select", "from", "where", "join", "left", "right", "inner", "outer", "insert", "update", "delete",
+                    "create", "table", "group", "order", "by", "limit", "and", "or", "not", "null"]
+            };
+            return groups[language] || common;
+        }
+
+        // 转义正则元字符，保证关键字列表可以安全拼成 RegExp。
+        function escapeRegExp(value) {
+            return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         }
 
         function stripFrontMatter(markdown) {

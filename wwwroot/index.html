@@ -358,8 +358,7 @@
             const fragment = document.createDocumentFragment();
             results.forEach(function(item, index) {
                 const keywordRegex = buildKeywordRegex(collectHighlightKeywords(item, keyword));
-                const href = "/blog.html?path=" + encodeURIComponent(item.url || "") +
-                    "&title=" + encodeURIComponent(item.title || "");
+                const href = buildBlogHref(item, keyword);
                 const link = document.createElement("a");
                 link.className = "result-item";
                 link.href = href;
@@ -376,6 +375,22 @@
                 fragment.appendChild(link);
             });
             resultList.appendChild(fragment);
+        }
+
+        // 进入文章页时带上命中词和摘要，供文章页定位到相关内容附近。
+        function buildBlogHref(item, fallbackKeyword) {
+            const params = new URLSearchParams();
+            params.set("path", item.url || "");
+            params.set("title", item.title || "");
+
+            const keywords = collectHighlightKeywords(item, fallbackKeyword).slice(0, 8);
+            if (keywords.length > 0) {
+                params.set("keywords", JSON.stringify(keywords));
+            }
+            if (item.desc) {
+                params.set("desc", item.desc);
+            }
+            return "/blog.html?" + params.toString();
         }
     </script>
 </body>
