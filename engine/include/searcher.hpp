@@ -378,28 +378,52 @@ class Searcher {
     }
 
   private:
-    // 根据关键词在文档中的位置，截取前后一定范围作为摘要
+    // 根据关键词在文档中的字符位置截取摘要，避免按 byte 截断导致中文乱码。
     std::string GetAbstract(const std::string &content, const std::string &word) {
-        auto it = std::search(content.begin(), content.end(), word.begin(), word.end(),
-                              [](char x, char y) { return std::tolower(x) == std::tolower(y); });
-        if (it == content.end()) {
+        std::vector<std::string> content_chars = SplitUtf8Chars(content);
+        std::vector<std::string> word_chars = SplitUtf8Chars(word);
+        if (word_chars.empty() || content_chars.size() < word_chars.size()) {
             return "None";
         }
 
-        long long pos = std::distance(content.begin(), it);
-        long long start = 0;
-        long long end = content.size();
+        size_t pos = std::string::npos;
+        size_t max_start = content_chars.size() - word_chars.size();
+        for (size_t start = 0; start <= max_start; ++start) {
+            bool matched = true;
+            for (size_t offset = 0; offset < word_chars.size(); ++offset) {
+                // 只折叠 ASCII 大小写，兼容 TCP/tcp，同时不破坏中文多字节字符。
+                std::string content_char = content_chars[start + offset];
+                std::string word_char = word_chars[offset];
+                ToLowerAscii(&content_char);
+                ToLowerAscii(&word_char);
+                if (content_char != word_char) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) {
+                pos = start;
+                break;
+            }
+        }
+        if (pos == std::string::npos) {
+            return "None";
+        }
 
-        if (pos > 50) {
-            start = pos - 50;
-        }
-        if (pos + 100 < end) {
-            end = pos + 100;
-        }
+        constexpr size_t kBeforeChars = 30;
+        constexpr size_t kAfterChars = 60;
+        size_t start = pos > kBeforeChars ? pos - kBeforeChars : 0;
+        size_t end = std::min(content_chars.size(), pos + word_chars.size() + kAfterChars);
         if (start >= end) {
             return "";
         }
-        return content.substr(start, end - start);
+
+        // 按 UTF-8 字符片段拼回摘要，保证截取边界不会落在中文字符中间。
+        std::string result;
+        for (size_t i = start; i < end; ++i) {
+            result += content_chars[i];
+        }
+        return result;
     }
 };
 
