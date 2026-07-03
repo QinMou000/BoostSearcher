@@ -5,6 +5,7 @@
 #include <cctype>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 namespace ns_searcher {
@@ -182,6 +183,39 @@ class Searcher {
 
         return prev[right.size()];
     }
+
+    // 只折叠 ASCII 大写字母，避免对中文 UTF-8 字节执行字符集相关转换。
+    // 中文在 UTF-8 下通常是多个字节。你如果对每个 byte 调 std::tolower
+    // 它并不知道这几个 byte 合起来是一个汉字，会把每个 byte 都当成一个字符去折叠大小写
+    // 更关键的是：std::tolower 的参数要求要么是 EOF，要么是能表示为 unsigned char 的值
+    // 很多平台上 char 默认是 signed，中文 UTF-8 字节经常是负数，直接传进去理论上有未定义行为风险
+    // 我们只是想让英文协议名大小写不敏感，不需要处理中文
+    static void ToLowerAscii(std::string *word) {
+        for (char &ch : *word) {
+            if (ch >= 'A' && ch <= 'Z') {
+                ch = static_cast<char>(ch - 'A' + 'a');
+            }
+        }
+    }
+
+    // 判断 query 分词是否属于搜索停用词，停用词只表达语法关系，不参与倒排召回。
+    static bool IsStopWord(const std::string &word) {
+        static const std::unordered_set<std::string> stop_words = {
+            "的",   "了",   "和",   "与",   "或",   "是", "在", "对", "把", "被", "及", "以及", "一个",
+            "这个", "那个", "什么", "怎么", "如何", "吗", "呢", "啊", "吧", "中", "上", "下"};
+        return stop_words.find(word) != stop_words.end();
+    }
+
+    // 清理 query 分词结果，避免“的、和”等高频虚词污染搜索结果和前端标红。
+    static void FilterSearchWords(std::vector<std::string> *words) {
+        words->erase(std::remove_if(words->begin(), words->end(),
+                                    [](std::string &word) {
+                                        ToLowerAscii(&word);
+                                        return IsStopWord(word);
+                                    }),
+                     words->end());
+    }
+
     ns_index::Index *index;
 
   public:
@@ -208,6 +242,11 @@ class Searcher {
     void Search(const std::string &query, std::string *json) {
         std::vector<std::string> words;
         Jieba_util::CutString(query, &words);
+        FilterSearchWords(&words);
+        if (words.empty()) {
+            *json = "[]";
+            return;
+        }
 
         struct MergedResult {
             uint64_t doc_id = 0;
@@ -235,7 +274,7 @@ class Searcher {
         };
 
         for (std::string word : words) {
-            std::transform(word.begin(), word.end(), word.begin(), ::tolower);
+            ToLowerAscii(&word);
 
             // 精确命中优先：只要原词能查到，就不再扩展模糊词，避免
             // 引入噪声。
@@ -284,6 +323,7 @@ class Searcher {
                 elem["desc"] = GetAbstract(doc->content, item.matched_words[0]);
             }
             elem["url"] = doc->url;
+            elem["keywords"] = item.matched_words; // 前端用这个来进行标红
             root.push_back(elem);
         }
 

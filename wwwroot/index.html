@@ -300,12 +300,31 @@
             }
         }
 
-        // 根据用户输入生成安全的关键词正则，支持空格分隔的多个关键词。
-        function buildKeywordRegex(keyword) {
-            const parts = String(keyword || "").trim().split(/\s+/).filter(Boolean).map(function(part) {
+        // 根据后端命中词生成安全正则，并按长度降序避免短词抢先匹配长词。
+        function buildKeywordRegex(keywords) {
+            const source = Array.isArray(keywords) ? keywords : String(keywords || "").trim().split(/\s+/);
+            const seen = new Set();
+            const parts = source.map(function(part) {
+                return String(part || "").trim();
+            }).filter(function(part) {
+                if (!part || seen.has(part)) return false;
+                seen.add(part);
+                return true;
+            }).sort(function(left, right) {
+                return right.length - left.length;
+            }).map(function(part) {
                 return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             });
             return parts.length ? new RegExp("(" + parts.join("|") + ")", "gi") : null;
+        }
+
+        // 后端 keywords 表示实际命中词，原始 query 只作为旧接口或空数组的兜底高亮词。
+        function collectHighlightKeywords(item, fallbackKeyword) {
+            const keywords = Array.isArray(item.keywords) ? item.keywords.slice() : [];
+            if (fallbackKeyword) {
+                keywords.push(fallbackKeyword);
+            }
+            return keywords;
         }
 
         // 用文本节点和 span 组合高亮结果，避免摘要内容绕过 HTML 转义。
@@ -336,9 +355,9 @@
         }
 
         function renderResults(results, keyword) {
-            const keywordRegex = buildKeywordRegex(keyword);
             const fragment = document.createDocumentFragment();
             results.forEach(function(item, index) {
+                const keywordRegex = buildKeywordRegex(collectHighlightKeywords(item, keyword));
                 const href = "/blog.html?path=" + encodeURIComponent(item.url || "") +
                     "&title=" + encodeURIComponent(item.title || "");
                 const link = document.createElement("a");
