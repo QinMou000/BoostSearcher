@@ -198,6 +198,45 @@ class Searcher {
         }
     }
 
+    // 只识别 ASCII 空白，避免把 UTF-8 中文字节误判为可删除字符。
+    static bool IsAsciiSpace(char ch) {
+        return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v';
+    }
+
+    // 生成短语匹配用文本：英文大小写归一，可选去掉空白来兼容用户输入空格差异。
+    static std::string NormalizePhrase(std::string text, bool remove_spaces) {
+        ToLowerAscii(&text);
+        if (remove_spaces) {
+            text.erase(std::remove_if(text.begin(), text.end(), IsAsciiSpace), text.end());
+        }
+        return text;
+    }
+
+    // 计算完整 query 在标题或正文中的加权，完整短语命中应优先于零散分词命中。
+    static int GetPhraseBoost(const ns_index::DocInfo &doc, const std::string &phrase,
+                              const std::string &compact_phrase) {
+        constexpr int kTitlePhraseBoost = 10000;
+        constexpr int kContentPhraseBoost = 5000;
+        const bool need_compact_match = !compact_phrase.empty() && compact_phrase != phrase;
+
+        std::string title = NormalizePhrase(doc.title, false);
+        if (title.find(phrase) != std::string::npos) {
+            return kTitlePhraseBoost;
+        }
+        if (need_compact_match && NormalizePhrase(doc.title, true).find(compact_phrase) != std::string::npos) {
+            return kTitlePhraseBoost;
+        }
+
+        std::string content = NormalizePhrase(doc.content, false);
+        if (content.find(phrase) != std::string::npos) {
+            return kContentPhraseBoost;
+        }
+        if (need_compact_match && NormalizePhrase(doc.content, true).find(compact_phrase) != std::string::npos) {
+            return kContentPhraseBoost;
+        }
+        return 0;
+    }
+
     // 判断 query 分词是否属于搜索停用词，停用词只表达语法关系，不参与倒排召回。
     static bool IsStopWord(const std::string &word) {
         static const std::unordered_set<std::string> stop_words = {
@@ -242,6 +281,7 @@ class Searcher {
     void Search(const std::string &query, std::string *json) {
         std::vector<std::string> words;
         Jieba_util::CutString(query, &words);
+        // 删除停用词，避免“的、和”等高频虚词污染搜索结果和前端标红
         FilterSearchWords(&words);
         if (words.empty()) {
             *json = "[]";
@@ -296,9 +336,16 @@ class Searcher {
             return;
         }
 
+        // 候选结果转成 vector 时顺手做短语加权，避免额外遍历 result_map。
+        std::string phrase = NormalizePhrase(query, false);
+        std::string compact_phrase = NormalizePhrase(query, true);
         std::vector<MergedResult> results;
         results.reserve(result_map.size());
         for (auto &item : result_map) {
+            ns_index::DocInfo *doc = index->GetForwardIndex(item.first);
+            if (doc != nullptr) {
+                item.second.sum_weight += GetPhraseBoost(*doc, phrase, compact_phrase);
+            }
             results.emplace_back(std::move(item.second));
         }
 
