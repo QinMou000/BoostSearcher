@@ -71,3 +71,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 拆分 C++ 头文件和实现文件
+
+**Date**: 2026-07-04
+**Task**: 拆分 C++ 头文件和实现文件
+**Branch**: `master`
+
+### Summary
+
+将第一方 C++ 模块拆分为 .h/.cpp，新增 search_engine 静态库并同步后端目录结构规范。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `<上一步代码提交哈希>` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
