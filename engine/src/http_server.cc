@@ -1,8 +1,8 @@
-#include "daemon.hpp"
+#include "daemon.h"
 #include "httplib.h"
-#include "log.hpp"
-#include "searcher.hpp"
-#include "util.hpp"
+#include "log.h"
+#include "searcher.h"
+#include "util.h"
 #include <algorithm>
 #include <filesystem>
 

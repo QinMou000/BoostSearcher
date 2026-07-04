@@ -1,18 +1,20 @@
-#pragma once
-#include <signal.h>
-#include <stdlib.h>
+#include "daemon.h"
+
+#include "log.h"
+
+#include <csignal>
+#include <cstdlib>
+
 #ifdef __linux__
 #include <fcntl.h>
 #include <unistd.h>
 #endif
-#include "log.hpp"
 
 #ifdef _WIN32
 void daemon() {
-    // Windows 下开发调试时保持前台运行
+    // Windows 下开发调试时保持前台运行。
 }
 #else
-// 将当前进程转为守护进程
 void daemon() {
     signal(SIGPIPE, SIG_IGN);
     signal(SIGCHLD, SIG_IGN);
@@ -23,7 +25,7 @@ void daemon() {
 
     setsid();
 
-    // 将标准输入/输出/错误重定向到 /dev/null
+    // 守护进程不应继续占用终端标准输入输出，统一重定向到 /dev/null。
     int fd = ::open("/dev/null", O_RDWR);
     if (fd < 0) {
         LOG(LogLevel::WARNING) << "open /dev/null error";

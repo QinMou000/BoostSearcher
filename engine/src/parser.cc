@@ -1,5 +1,5 @@
-#include "log.hpp"
-#include "util.hpp"
+#include "log.h"
+#include "util.h"
 #include <cctype>
 #include <exception>
 #include <filesystem>
@@ -23,30 +23,24 @@ typedef struct DocInfo {
 } DocInfo_t;
 
 // 枚举指定目录下特定扩展名的文件
-bool EnumFile(const std::string &src_path, const std::string &ext,
-              std::vector<fs::path> *file_list);
+bool EnumFile(const std::string &src_path, const std::string &ext, std::vector<fs::path> *file_list);
 
 // Markdown 解析
-bool ParseMd(const std::vector<fs::path> &file_list,
-             std::vector<DocInfo_t> *results);
+bool ParseMd(const std::vector<fs::path> &file_list, std::vector<DocInfo_t> *results);
 
 // 保存结果
-bool SaveResults(const std::vector<DocInfo_t> &results,
-                 const std::string &output);
+bool SaveResults(const std::vector<DocInfo_t> &results, const std::string &output);
 
 int main() {
     try {
-        LOG(LogLevel::INFO)
-            << "parser start, source: " + md_src_path + ", output: " + output;
+        LOG(LogLevel::INFO) << "parser start, source: " + md_src_path + ", output: " + output;
 
         std::vector<fs::path> md_files;
         if (!EnumFile(md_src_path, ".md", &md_files)) {
             LOG(LogLevel::FATAL) << "MD 文档目录不存在或为空: " + md_src_path;
             return 1;
         }
-        LOG(LogLevel::INFO)
-            << "MD 文档枚举完成: " + std::to_string(md_files.size()) +
-                   " 个文件";
+        LOG(LogLevel::INFO) << "MD 文档枚举完成: " + std::to_string(md_files.size()) + " 个文件";
 
         std::vector<DocInfo_t> results;
         if (!ParseMd(md_files, &results)) {
@@ -54,8 +48,7 @@ int main() {
             return 2;
         }
 
-        LOG(LogLevel::INFO)
-            << "MD 文档解析完成: " + std::to_string(results.size()) + " 篇文档";
+        LOG(LogLevel::INFO) << "MD 文档解析完成: " + std::to_string(results.size()) + " 篇文档";
 
         if (!SaveResults(results, output)) {
             LOG(LogLevel::FATAL) << "SaveResults fail";
@@ -65,8 +58,7 @@ int main() {
         LOG(LogLevel::INFO) << "全部完成";
         return 0;
     } catch (const std::exception &e) {
-        LOG(LogLevel::FATAL)
-            << std::string("parser unexpected exception: ") + e.what();
+        LOG(LogLevel::FATAL) << std::string("parser unexpected exception: ") + e.what();
         return 4;
     } catch (...) {
         LOG(LogLevel::FATAL) << "parser unknown exception";
@@ -74,8 +66,7 @@ int main() {
     }
 }
 
-bool EnumFile(const std::string &src_path, const std::string &ext,
-              std::vector<fs::path> *file_list) {
+bool EnumFile(const std::string &src_path, const std::string &ext, std::vector<fs::path> *file_list) {
     if (file_list == nullptr) {
         LOG(LogLevel::LOG_ERROR) << "EnumFile output list is null";
         return false;
@@ -94,13 +85,11 @@ bool EnumFile(const std::string &src_path, const std::string &ext,
     try {
         fs::path root_path(src_path);
         if (!fs::exists(root_path)) {
-            LOG(LogLevel::LOG_ERROR)
-                << "EnumFile source path does not exist: " + src_path;
+            LOG(LogLevel::LOG_ERROR) << "EnumFile source path does not exist: " + src_path;
             return false;
         }
         if (!fs::is_directory(root_path)) {
-            LOG(LogLevel::LOG_ERROR)
-                << "EnumFile source path is not a directory: " + src_path;
+            LOG(LogLevel::LOG_ERROR) << "EnumFile source path is not a directory: " + src_path;
             return false;
         }
 
@@ -114,8 +103,7 @@ bool EnumFile(const std::string &src_path, const std::string &ext,
             file_list->push_back(entry.path());
         }
     } catch (const fs::filesystem_error &e) {
-        LOG(LogLevel::LOG_ERROR)
-            << std::string("EnumFile filesystem error: ") + e.what();
+        LOG(LogLevel::LOG_ERROR) << std::string("EnumFile filesystem error: ") + e.what();
         return false;
     } catch (const std::exception &e) {
         LOG(LogLevel::LOG_ERROR) << std::string("EnumFile error: ") + e.what();
@@ -123,8 +111,7 @@ bool EnumFile(const std::string &src_path, const std::string &ext,
     }
 
     if (file_list->empty()) {
-        LOG(LogLevel::WARNING)
-            << "EnumFile found no files, source: " + src_path + ", ext: " + ext;
+        LOG(LogLevel::WARNING) << "EnumFile found no files, source: " + src_path + ", ext: " + ext;
         return false;
     }
     return true;
@@ -146,14 +133,10 @@ static bool ParseMdTitle(const std::string &content, std::string *title) {
             }
             if (line.substr(0, 6) == "title:") {
                 *title = line.substr(6);
-                while (!title->empty() &&
-                       (title->front() == ' ' || title->front() == '"' ||
-                        title->front() == '\'')) {
+                while (!title->empty() && (title->front() == ' ' || title->front() == '"' || title->front() == '\'')) {
                     title->erase(0, 1);
                 }
-                while (!title->empty() &&
-                       (title->back() == ' ' || title->back() == '"' ||
-                        title->back() == '\'')) {
+                while (!title->empty() && (title->back() == ' ' || title->back() == '"' || title->back() == '\'')) {
                     title->pop_back();
                 }
                 if (!title->empty())
@@ -246,14 +229,12 @@ static std::string StripMarkdown(const std::string &content) {
         line = std::regex_replace(line, html_tag_re, "");
 
         // 去除列表标记
-        if (!line.empty() &&
-            (line[0] == '-' || line[0] == '*' || line[0] == '+')) {
+        if (!line.empty() && (line[0] == '-' || line[0] == '*' || line[0] == '+')) {
             size_t pos = line.find_first_not_of("-*+ \t");
             if (pos != std::string::npos) {
                 line = line.substr(pos);
             }
-        } else if (!line.empty() &&
-                   std::isdigit(static_cast<unsigned char>(line[0]))) {
+        } else if (!line.empty() && std::isdigit(static_cast<unsigned char>(line[0]))) {
             size_t dot = line.find(". ");
             if (dot != std::string::npos && dot < 4) {
                 line = line.substr(dot + 2);
@@ -276,9 +257,7 @@ static std::string StripMarkdown(const std::string &content) {
     return text;
 }
 
-static std::string PathToUtf8(const fs::path &path) {
-    return File_Util::PathToUtf8(path);
-}
+static std::string PathToUtf8(const fs::path &path) { return File_Util::PathToUtf8(path); }
 
 static std::string PathToGenericUtf8(const fs::path &path) {
     auto value = path.generic_u8string();
@@ -290,16 +269,14 @@ static std::string MdFileToUrl(const fs::path &file_name) {
     std::error_code ec;
     fs::path relative = fs::relative(file_name, fs::path(data_root_path), ec);
     if (ec || relative.empty()) {
-        LOG(LogLevel::WARNING)
-            << "MD file path cannot be made relative: " + PathToUtf8(file_name);
+        LOG(LogLevel::WARNING) << "MD file path cannot be made relative: " + PathToUtf8(file_name);
         return PathToGenericUtf8(file_name.filename());
     }
 
     return PathToGenericUtf8(fs::path("data") / relative);
 }
 
-bool ParseMd(const std::vector<fs::path> &file_list,
-             std::vector<DocInfo_t> *results) {
+bool ParseMd(const std::vector<fs::path> &file_list, std::vector<DocInfo_t> *results) {
     if (results == nullptr) {
         LOG(LogLevel::LOG_ERROR) << "ParseMd results is null";
         return false;
@@ -324,14 +301,12 @@ bool ParseMd(const std::vector<fs::path> &file_list,
         std::string raw;
         if (!File_Util::ReadFileLines(file_name, &raw)) {
             ++read_fail_count;
-            LOG(LogLevel::WARNING)
-                << "ParseMd read file fail, skip: " + PathToUtf8(file_name);
+            LOG(LogLevel::WARNING) << "ParseMd read file fail, skip: " + PathToUtf8(file_name);
             continue;
         }
         if (raw.empty()) {
             ++empty_content_count;
-            LOG(LogLevel::WARNING)
-                << "ParseMd skip empty file: " + PathToUtf8(file_name);
+            LOG(LogLevel::WARNING) << "ParseMd skip empty file: " + PathToUtf8(file_name);
             continue;
         }
 
@@ -339,36 +314,30 @@ bool ParseMd(const std::vector<fs::path> &file_list,
         if (!ParseMdTitle(raw, &doc.title)) {
             doc.title = PathToUtf8(file_name.stem());
             ++fallback_title_count;
-            LOG(LogLevel::WARNING)
-                << "ParseMd title not found, fallback to filename: " +
-                       PathToUtf8(file_name);
+            LOG(LogLevel::WARNING) << "ParseMd title not found, fallback to filename: " + PathToUtf8(file_name);
         }
         doc.content = StripMarkdown(raw);
         if (doc.content.empty()) {
             ++empty_content_count;
-            LOG(LogLevel::WARNING)
-                << "ParseMd skip file with empty content after strip: " +
-                       PathToUtf8(file_name);
+            LOG(LogLevel::WARNING) << "ParseMd skip file with empty content after strip: " + PathToUtf8(file_name);
             continue;
         }
         doc.url = MdFileToUrl(file_name);
         results->emplace_back(doc);
     }
 
-    LOG(LogLevel::INFO)
-        << "ParseMd summary, input: " + std::to_string(file_list.size()) +
-               ", parsed: " + std::to_string(results->size()) +
-               ", read_fail: " + std::to_string(read_fail_count) +
-               ", empty_content: " + std::to_string(empty_content_count) +
-               ", fallback_title: " + std::to_string(fallback_title_count);
+    LOG(LogLevel::INFO) << "ParseMd summary, input: " + std::to_string(file_list.size()) +
+                               ", parsed: " + std::to_string(results->size()) +
+                               ", read_fail: " + std::to_string(read_fail_count) +
+                               ", empty_content: " + std::to_string(empty_content_count) +
+                               ", fallback_title: " + std::to_string(fallback_title_count);
 
     return !results->empty();
 }
 
 // ========== 保存结果 ==========
 
-bool SaveResults(const std::vector<DocInfo_t> &results,
-                 const std::string &output) {
+bool SaveResults(const std::vector<DocInfo_t> &results, const std::string &output) {
     if (output.empty()) {
         LOG(LogLevel::LOG_ERROR) << "SaveResults output path is empty";
         return false;
@@ -384,9 +353,7 @@ bool SaveResults(const std::vector<DocInfo_t> &results,
             fs::create_directories(output_path.parent_path());
         }
     } catch (const fs::filesystem_error &e) {
-        LOG(LogLevel::LOG_ERROR)
-            << std::string("SaveResults create output directory fail: ") +
-                   e.what();
+        LOG(LogLevel::LOG_ERROR) << std::string("SaveResults create output directory fail: ") + e.what();
         return false;
     }
 
@@ -406,9 +373,7 @@ bool SaveResults(const std::vector<DocInfo_t> &results,
         out_line += "\n";
         out.write(out_line.c_str(), out_line.size());
         if (!out.good()) {
-            LOG(LogLevel::LOG_ERROR)
-                << "SaveResults write fail, output: " + output +
-                       ", url: " + it.url;
+            LOG(LogLevel::LOG_ERROR) << "SaveResults write fail, output: " + output + ", url: " + it.url;
             return false;
         }
     }
@@ -418,7 +383,6 @@ bool SaveResults(const std::vector<DocInfo_t> &results,
         return false;
     }
 
-    LOG(LogLevel::INFO) << "SaveResults success, output: " + output +
-                               ", docs: " + std::to_string(results.size());
+    LOG(LogLevel::INFO) << "SaveResults success, output: " + output + ", docs: " + std::to_string(results.size());
     return true;
 }
