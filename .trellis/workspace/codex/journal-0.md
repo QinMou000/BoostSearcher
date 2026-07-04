@@ -38,3 +38,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: 实现 BM25 搜索排序
+
+**Date**: 2026-07-04
+**Task**: 实现 BM25 搜索排序
+**Branch**: `master`
+
+### Summary
+
+为搜索后端引入字段化 BM25 排序，补充标题优先测试，并记录 backend 排序契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `46d0754` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
