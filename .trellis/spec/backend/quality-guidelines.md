@@ -111,6 +111,64 @@ python -B tests/stress_searcher.py --docs 120 --queries 40 --skip-http
 
 ## Code Review Checklist
 
+## 场景：搜索 BM25 排序
+
+### 1. Scope / Trigger
+
+* 触发条件：修改 `engine/include/index.hpp` 的倒排索引结构，或修改 `engine/include/searcher.hpp` 的搜索排序、短语加权、模糊召回降权逻辑。
+* 适用范围：本地搜索后端的索引构建、命令行搜索入口和 HTTP `/s?word=` 入口共享同一套 `Searcher::Search` 排序逻辑。
+
+### 2. Signatures
+
+* 对外接口保持 `void Searcher::Search(const std::string &query, std::string *json)`。
+* 返回 JSON 字段保持 `title`、`desc`、`url`、`keywords`。
+* 索引层需要能提供文档总数、标题平均分词长度、正文平均分词长度，供搜索阶段计算 IDF 和长度归一化。
+
+### 3. Contracts
+
+* 倒排项必须记录同一词在标题和正文里的独立词频，不再只保存静态总权重。
+* 文档正排信息必须记录标题分词长度和正文分词长度；每次重新构建索引前必须清空旧索引和旧统计。
+* 搜索排序分数使用浮点数：标题 BM25 分和正文 BM25 分分别计算，再按字段权重合并。
+* 短语命中加成必须与 BM25 分数保持同一量级，禁止使用会完全盖过 BM25 的超大常量。
+* 模糊召回仍然只在精确未命中后触发，并继续使用低于精确命中的权重比例。
+
+### 4. Validation & Error Matrix
+
+* 空查询或只剩停用词 -> 返回空 JSON 数组。
+* 单字查询未精确命中 -> 不触发模糊召回，避免误召回。
+* 文档字段长度平均值为 0 -> BM25 字段分返回 0，避免除零。
+* 倒排项中的 `doc_id` 越界 -> 跳过该项并保留 warning 日志。
+
+### 5. Good/Base/Bad Cases
+
+* Good：查询词同时出现在标题和正文时，标题命中文档应优先于只靠正文重复堆词的文档。
+* Base：精确搜索、模糊搜索、无结果搜索和并发搜索行为保持稳定。
+* Bad：把标题词频乘固定常量后直接累加为整数分，无法体现 IDF、词频饱和和文档长度归一化。
+* Bad：把短语加成设置成数千或数万，导致 BM25 算分基本失效。
+
+### 6. Tests Required
+
+* 必须运行 `searcher_tests` 或等价手工编译测试，覆盖精确命中、模糊召回、单字无模糊、并发搜索和 BM25 标题优先排序。
+* 构建环境允许时优先运行 `cmake --build <build-dir> --target searcher_tests --config Debug`。
+* 若 MSBuild/CMake 因本地权限或锁文件失败，必须记录失败原因，并用 `cl.exe` 直接编译 `tests/searcher_tests.cc` 作为补偿验证。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```cpp
+elem.weight = title_count * 10 + content_count;
+merged.sum_weight += elem.weight;
+```
+
+#### Correct
+
+```cpp
+elem.title_count = title_count;
+elem.content_count = content_count;
+merged.score += GetBm25Score(elem, doc, idf);
+```
+
 <!-- What reviewers should check -->
 
 (To be filled by the team)

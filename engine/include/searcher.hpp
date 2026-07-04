@@ -1,8 +1,9 @@
 #pragma once
 #include "index.hpp"
 #include "log.hpp"
+#include "util.hpp"
 #include <algorithm>
-#include <cctype>
+#include <cmath>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -43,6 +44,7 @@ class Searcher {
         };
 
         std::vector<Candidate> candidates;
+        // 这里是一个 O(N) 遍历，N 是倒排词典大小 后续考虑做优化 TODO
         for (const auto &pair : index->GetInvertedIndex()) {
             std::vector<std::string> term_chars = SplitUtf8Chars(pair.first);
             size_t term_size = term_chars.size();
@@ -184,20 +186,6 @@ class Searcher {
         return prev[right.size()];
     }
 
-    // 只折叠 ASCII 大写字母，避免对中文 UTF-8 字节执行字符集相关转换。
-    // 中文在 UTF-8 下通常是多个字节。你如果对每个 byte 调 std::tolower
-    // 它并不知道这几个 byte 合起来是一个汉字，会把每个 byte 都当成一个字符去折叠大小写
-    // 更关键的是：std::tolower 的参数要求要么是 EOF，要么是能表示为 unsigned char 的值
-    // 很多平台上 char 默认是 signed，中文 UTF-8 字节经常是负数，直接传进去理论上有未定义行为风险
-    // 我们只是想让英文协议名大小写不敏感，不需要处理中文
-    static void ToLowerAscii(std::string *word) {
-        for (char &ch : *word) {
-            if (ch >= 'A' && ch <= 'Z') {
-                ch = static_cast<char>(ch - 'A' + 'a');
-            }
-        }
-    }
-
     // 只识别 ASCII 空白，避免把 UTF-8 中文字节误判为可删除字符。
     static bool IsAsciiSpace(char ch) {
         return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v';
@@ -205,7 +193,7 @@ class Searcher {
 
     // 生成短语匹配用文本：英文大小写归一，可选去掉空白来兼容用户输入空格差异。
     static std::string NormalizePhrase(std::string text, bool remove_spaces) {
-        ToLowerAscii(&text);
+        String_Util::ToLowerAscii(&text);
         if (remove_spaces) {
             text.erase(std::remove_if(text.begin(), text.end(), IsAsciiSpace), text.end());
         }
@@ -213,10 +201,13 @@ class Searcher {
     }
 
     // 计算完整 query 在标题或正文中的加权，完整短语命中应优先于零散分词命中。
-    static int GetPhraseBoost(const ns_index::DocInfo &doc, const std::string &phrase,
-                              const std::string &compact_phrase) {
-        constexpr int kTitlePhraseBoost = 10000;
-        constexpr int kContentPhraseBoost = 5000;
+    static double GetPhraseBoost(const ns_index::DocInfo &doc, const std::string &phrase,
+                                 const std::string &compact_phrase) {
+        // 短语加成只做“同分附近的相关性校正”，不能再使用上万级常量。
+        // 如果加成远大于 BM25，IDF、词频饱和和长度归一化都会被短语命中完全盖掉。
+        constexpr double kTitlePhraseBoost = 8.0;
+        constexpr double kContentPhraseBoost = 4.0;
+        // compact_phrase 用来兼容用户输入空格差异，例如 “TCP IP” 和 “TCPIP” 的标题匹配。
         const bool need_compact_match = !compact_phrase.empty() && compact_phrase != phrase;
 
         std::string title = NormalizePhrase(doc.title, false);
@@ -234,7 +225,70 @@ class Searcher {
         if (need_compact_match && NormalizePhrase(doc.content, true).find(compact_phrase) != std::string::npos) {
             return kContentPhraseBoost;
         }
-        return 0;
+        return 0.0;
+    }
+
+    double GetInverseDocumentFrequency(size_t doc_freq) const {
+        // IDF 衡量词的区分度：命中文档越少，说明这个词越能代表用户意图。
+        // 这里传入的 doc_freq 是倒排拉链长度，即包含该词的文档数，而不是词出现总次数。
+        // 使用 log(1 + ...) 的 BM25 变体，避免高频词在小语料或极端语料下产生负分。
+        size_t doc_count = index->GetDocCount();
+        if (doc_count == 0 || doc_freq == 0) {
+            return 0.0;
+        }
+        double total_docs = static_cast<double>(doc_count);
+        double matched_docs = static_cast<double>(doc_freq);
+        // 核心公式：IDF = log(1 + (N - n + 0.5) / (n + 0.5))，其中 N 是总文档数，n 是包含该词的文档数
+        return std::log(1.0 + (total_docs - matched_docs + 0.5) / (matched_docs + 0.5));
+    }
+
+    /**
+     * @brief 计算某一个字段里的 BM25 子分数
+     *
+     * @param term_freq 当前查询词在这个字段中出现的次数，来自 InvertedElem::title_count 或 content_count。
+     *                  值越大说明字段内匹配越强，但 BM25 会让词频收益逐渐饱和，避免堆词刷分。
+     * @param field_len 当前文档这个字段的分词长度，来自 DocInfo::title_len 或 content_len。
+     *                  这里的长度是 token 数，不是字节数；字段越长，同样词频越需要被归一化惩罚。
+     * @param avg_field_len 整个语料中同类字段的平均分词长度，来自 Index::GetAvgTitleLen 或 GetAvgContentLen。
+     *                      它是长度归一化的全局基准；为 0 时说明索引为空或统计不可用，直接返回 0。
+     * @param idf 当前查询词的逆文档频率，由 GetInverseDocumentFrequency 根据倒排拉链长度计算。
+     *            它表示词本身的区分度；越稀有的词 idf 越高，对排序影响越大。
+     */
+    static double GetBm25FieldScore(int term_freq, size_t field_len, double avg_field_len, double idf) {
+        // 字段内 BM25 分数 = IDF * 饱和后的词频贡献。
+        // k1 控制词频收益的饱和速度：词频越高仍会加分，但边际收益越来越小。
+        constexpr double kBm25K1 = 1.5;
+        // b 控制字段长度归一化强度：标题/正文越长，同样词频获得的分数越低。
+        // 0.75 是 BM25 常用默认值，先作为第一版基线，后续可通过评测集调参。
+        constexpr double kBm25B = 0.75;
+        if (term_freq <= 0 || avg_field_len <= 0.0 || idf <= 0.0) {
+            return 0.0;
+        }
+
+        double tf = static_cast<double>(term_freq);
+        // length_ratio > 1 表示该字段长于平均水平，会在 denominator 中被惩罚；
+        // length_ratio < 1 表示字段更短，同样命中更集中，得分略高。
+        double length_ratio = static_cast<double>(field_len) / avg_field_len;
+        double normalized_length = 1.0 - kBm25B + kBm25B * length_ratio;
+        double denominator = tf + kBm25K1 * normalized_length;
+        if (denominator <= 0.0) {
+            return 0.0;
+        }
+        return idf * (tf * (kBm25K1 + 1.0)) / denominator;
+    }
+
+    double GetBm25Score(const ns_index::InvertedElem &item, const ns_index::DocInfo &doc, double idf) const {
+        // 第一版采用轻量 BM25F：标题和正文各自 BM25，再用字段权重合并。
+        // 标题更接近文章主题，因此标题命中权重大于正文；正文仍保留基础召回能力。
+        constexpr double kTitleFieldWeight = 3.0;
+        constexpr double kContentFieldWeight = 1.0;
+        // item 里保存的是当前词在该文档各字段的词频，doc 里保存的是同一字段长度。
+        // 两者必须来自同一次分词流程，才能让 BM25 的词频和长度归一化口径一致。
+        double title_score =
+            GetBm25FieldScore(item.title_count, doc.title_len, index->GetAvgTitleLen(), idf) * kTitleFieldWeight;
+        double content_score = GetBm25FieldScore(item.content_count, doc.content_len, index->GetAvgContentLen(), idf) *
+                               kContentFieldWeight;
+        return title_score + content_score;
     }
 
     // 判断 query 分词是否属于搜索停用词，停用词只表达语法关系，不参与倒排召回。
@@ -249,7 +303,7 @@ class Searcher {
     static void FilterSearchWords(std::vector<std::string> *words) {
         words->erase(std::remove_if(words->begin(), words->end(),
                                     [](std::string &word) {
-                                        ToLowerAscii(&word);
+                                        String_Util::ToLowerAscii(&word);
                                         return IsStopWord(word);
                                     }),
                      words->end());
@@ -290,7 +344,8 @@ class Searcher {
 
         struct MergedResult {
             uint64_t doc_id = 0;
-            int sum_weight = 0;
+            // BM25、短语加成和模糊降权都会产生小数，使用 double 避免整数截断改变排序。
+            double score = 0.0;
             std::vector<std::string> matched_words;
         };
 
@@ -299,22 +354,33 @@ class Searcher {
         // 同一个文档可能被多个词命中；统一从这里合并权重和命中词。
         // weight_percent 用来区分精确命中和模糊命中，保持排序逻辑集中。
         auto merge_inverted_list = [&](const ns_index::InvertedList *list, int weight_percent) {
-            for (auto &item : *list) {
-                int weight = item.weight * weight_percent / 100;
-                // 对低权重词做百分比折算时，至少保留 1 分，避免召回后
-                // 被算成 0。
-                if (weight <= 0) {
-                    weight = 1;
+            // 同一个 query 词对应同一条倒排拉链，IDF 对这条拉链里的所有文档相同，只需要计算一次。
+            // 计算这个词在语料库中的稀有度，IDF 越高说明这个词越能代表用户意图。
+            double idf = GetInverseDocumentFrequency(list->size());
+            if (idf <= 0.0) {
+                return;
+            }
+            for (const auto &item : *list) {
+                ns_index::DocInfo *doc = index->GetForwardIndex(item.doc_id);
+                if (doc == nullptr) {
+                    continue;
+                }
+                // weight_percent 只负责召回来源降权：精确命中为 100，模糊命中目前为 60。
+                // 它乘在完整 BM25 分之后，确保模糊结果整体弱于同等条件下的精确结果。
+                double score = GetBm25Score(item, *doc, idf) * static_cast<double>(weight_percent) / 100.0;
+                if (score <= 0.0) {
+                    continue;
                 }
                 auto &merged = result_map[item.doc_id];
                 merged.doc_id = item.doc_id;
-                merged.sum_weight += weight;
+                // 多个 query 词命中同一文档时累加相关性分数，体现多词共同匹配的优势。
+                merged.score += score;
                 merged.matched_words.emplace_back(item.word);
             }
         };
 
         for (std::string word : words) {
-            ToLowerAscii(&word);
+            String_Util::ToLowerAscii(&word);
 
             // 精确命中优先：只要原词能查到，就不再扩展模糊词，避免
             // 引入噪声。
@@ -344,14 +410,19 @@ class Searcher {
         for (auto &item : result_map) {
             ns_index::DocInfo *doc = index->GetForwardIndex(item.first);
             if (doc != nullptr) {
-                item.second.sum_weight += GetPhraseBoost(*doc, phrase, compact_phrase);
+                item.second.score += GetPhraseBoost(*doc, phrase, compact_phrase);
             }
             results.emplace_back(std::move(item.second));
         }
 
         // 先排序再截取 top-N
-        std::sort(results.begin(), results.end(),
-                  [](const MergedResult &a, const MergedResult &b) { return a.sum_weight > b.sum_weight; });
+        std::sort(results.begin(), results.end(), [](const MergedResult &a, const MergedResult &b) {
+            if (a.score != b.score) {
+                return a.score > b.score;
+            }
+            // 浮点同分时按 doc_id 稳定排序，避免 unordered_map 遍历顺序影响结果抖动。
+            return a.doc_id < b.doc_id;
+        });
 
         constexpr size_t kMaxResults = 100;
         if (results.size() > kMaxResults) {
@@ -394,8 +465,8 @@ class Searcher {
                 // 只折叠 ASCII 大小写，兼容 TCP/tcp，同时不破坏中文多字节字符。
                 std::string content_char = content_chars[start + offset];
                 std::string word_char = word_chars[offset];
-                ToLowerAscii(&content_char);
-                ToLowerAscii(&word_char);
+                String_Util::ToLowerAscii(&content_char);
+                String_Util::ToLowerAscii(&word_char);
                 if (content_char != word_char) {
                     matched = false;
                     break;

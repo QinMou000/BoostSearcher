@@ -38,6 +38,11 @@ void WriteTestRawFile() {
         << "data/raw/md/c-calculator.md" << '\n';
     out << "单片机LED点阵" << sep << "LED点阵显示动画。" << sep
         << "data/raw/md/led.md" << '\n';
+    // 这篇文档故意只在正文中重复查询词，用来验证 BM25 的字段权重和词频饱和：
+    // 标题命中文档不应该被正文堆词文档轻易压过。
+    out << "正文堆词材料" << sep
+        << "网络协议 网络协议 网络协议 网络协议 网络协议 网络协议。"
+        << sep << "data/raw/md/body-network.md" << '\n';
 }
 
 nlohmann::json SearchJson(ns_searcher::Searcher &searcher,
@@ -88,6 +93,15 @@ void TestSingleCharDoesNotFuzzyMatch(ns_searcher::Searcher &searcher) {
     nlohmann::json results = SearchJson(searcher, "义");
 
     Check(results.empty(), "单字查询不应进行模糊召回");
+}
+
+void TestBm25TitlePriority(ns_searcher::Searcher &searcher) {
+    nlohmann::json results = SearchJson(searcher, "网络协议");
+
+    Check(!results.empty(), "BM25 排序测试应返回结果");
+    // 若排序退回固定词频累加，正文重复多次的文档可能排到前面；这里锁住标题优先策略。
+    Check(results[0].value("title", "") == "网络协议基础",
+          "BM25 标题命中应优先于正文堆词文档");
 }
 
 void TestConcurrentSearch(ns_searcher::Searcher &searcher) {
@@ -179,6 +193,7 @@ int main() {
     TestExactSearch(searcher);
     TestFuzzySearch(searcher);
     TestSingleCharDoesNotFuzzyMatch(searcher);
+    TestBm25TitlePriority(searcher);
     TestConcurrentSearch(searcher);
 
     std::remove(kRawPath);

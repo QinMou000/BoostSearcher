@@ -58,7 +58,7 @@ class File_Util {
     }
 };
 
-// 字符串工具类：提供字符串分割功能
+// 字符串工具类：提供字符串分割和轻量文本归一化能力
 class String_Util {
   public:
     // 按分隔符拆分字符串，连续分隔符视为一个（token_compress_on 行为）
@@ -79,6 +79,19 @@ class String_Util {
         std::string last = line.substr(start);
         if (!last.empty()) {
             result->emplace_back(std::move(last));
+        }
+    }
+
+    static void ToLowerAscii(std::string *word) {
+        if (word == nullptr) {
+            return;
+        }
+        // 只折叠 ASCII 大写字母，避免把中文 UTF-8 字节传给 std::tolower 产生未定义行为。
+        // 这个工具用于索引和查询两侧保持英文协议名大小写不敏感，同时不改动中文内容。
+        for (char &ch : *word) {
+            if (ch >= 'A' && ch <= 'Z') {
+                ch = static_cast<char>(ch - 'A' + 'a');
+            }
         }
     }
 };
