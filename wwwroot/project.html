@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索、BM25F 与模糊召回 | Boost Searcher</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #202428;
+            --muted: #5e6971;
+            --line: #dfe5e2;
+            --accent: #176f8f;
+            --code-bg: #f3f6f7;
+        }
+
+        [data-theme="dark"] {
+            --bg: #000000;
+            --text: #e7ebef;
+            --muted: #aab3bb;
+            --line: #363d43;
+            --accent: #6ab6d6;
+            --code-bg: #11171a;
+        }
+
+        * { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            line-height: 1.8;
+        }
+
+        button { font: inherit; }
+
+        .page {
+            width: min(860px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 26px 0 64px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .topbar a {
+            color: var(--muted);
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .topbar a:hover { color: var(--accent); }
+
+        .theme-button {
+            display: inline-grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        article { padding-top: 44px; }
+
+        h1, h2, h3, p { margin-top: 0; }
+
+        h1 {
+            margin-bottom: 18px;
+            font-size: clamp(32px, 5vw, 46px);
+            line-height: 1.25;
+            letter-spacing: -0.03em;
+        }
+
+        h2 {
+            margin-top: 58px;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line);
+            font-size: 27px;
+            line-height: 1.35;
+            scroll-margin-top: 18px;
+        }
+
+        h3 {
+            margin-top: 32px;
+            margin-bottom: 10px;
+            font-size: 19px;
+            line-height: 1.45;
+        }
+
+        p, li { font-size: 16px; }
+
+        .lead {
+            color: var(--muted);
+            font-size: 17px;
+        }
+
+        .meta {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .toc {
+            margin: 30px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .toc li { margin: 6px 0; }
+
+        .toc a { color: var(--accent); text-decoration: none; }
+
+        .toc a:hover { text-decoration: underline; }
+
+        ul, ol { padding-left: 1.4em; }
+
+        li + li { margin-top: 7px; }
+
+        code {
+            padding: 0.08em 0.3em;
+            border-radius: 4px;
+            background: var(--code-bg);
+            color: var(--accent);
+            font-family: Consolas, "Liberation Mono", monospace;
+            font-size: 0.9em;
+        }
+
+        /* 数学公式使用浏览器原生 MathML，保留文章式阅读体验且无需加载第三方脚本。 */
+        .formula {
+            margin: 20px 0;
+            overflow-x: auto;
+            color: var(--text);
+            font-size: 1.16rem;
+            line-height: 1.8;
+            text-align: center;
+        }
+
+        .formula math { min-width: max-content; }
+
+        blockquote {
+            margin: 20px 0;
+            padding-left: 16px;
+            border-left: 3px solid var(--line);
+            color: var(--muted);
+        }
+
+        .footnote {
+            margin-top: 44px;
+            padding-top: 18px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        @media (max-width: 560px) {
+            .page { width: min(100% - 24px, 860px); padding-top: 18px; }
+            article { padding-top: 32px; }
+            h2 { margin-top: 44px; font-size: 24px; }
+            p, li { font-size: 15px; }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page">
+        <header class="topbar">
+            <a href="/">← 返回搜索首页</a>
+            <button class="theme-button" id="themeToggle" type="button" aria-label="切换深浅色主题">☾</button>
+        </header>
+
+        <article>
+            <h1>Boost Searcher 中的搜索、BM25F 与编辑距离模糊召回</h1>
+            <p class="lead">本文只解释项目当前已经实现的检索逻辑：一条查询如何进入索引、BM25F 如何排序、错别字如何被模糊召回，以及现有实现还缺少什么、下一步可以怎样优化。</p>
+            <p class="meta">说明依据：当前 <code>Index</code>、<code>Searcher</code> 实现和项目 README。文中“优化方向”均为尚未实现的后续建议。</p>
+
+            <nav aria-label="目录">
+                <h2>目录</h2>
+                <ol class="toc">
+                    <li><a href="#search">项目中的搜索流程</a></li>
+                    <li><a href="#bm25">BM25F 相关性排序</a></li>
+                    <li><a href="#fuzzy">编辑距离模糊召回</a></li>
+                    <li><a href="#improvements">当前不足与优化顺序</a></li>
+                </ol>
+            </nav>
+
+            <section id="search" aria-labelledby="searchTitle">
+                <h2 id="searchTitle">一、项目中的搜索流程</h2>
+
+                <p>Boost Searcher 是一个本地 Markdown 文档搜索服务。它不会在每次查询时逐篇扫描所有文档，而是先在启动时把语料构造成内存索引，再在查询时按词直接取得候选文档。这样做的核心目的，是把“在所有文档中找词”的工作尽量前置到索引构建阶段。</p>
+
+                <h3>1. 离线解析与索引构建</h3>
+
+                <p><code>parser</code> 会读取 <code>data/raw/md/</code> 下的 Markdown 文件，抽取标题、正文和相对路径，并写入 <code>data/raw.txt</code>。服务启动后，<code>Index</code> 会读取该语料并构建两类索引：</p>
+
+                <ul>
+                    <li><strong>正排索引</strong>：按 <code>doc_id</code> 保存标题、正文和路径。搜索阶段已经得到文档编号时，可以从这里取回展示所需的内容。</li>
+                    <li><strong>倒排索引</strong>：保存 <code>词 → 文档列表</code> 的映射。每个倒排项还分别记录这个词在标题和正文中的出现次数，供后续 BM25F 计算。</li>
+                </ul>
+
+                <p>标题和正文都会通过 cppjieba 分词。项目同时记录每个字段的分词长度，以及全库标题、正文的平均分词长度。这些长度统计不是为了展示，而是 BM25F 做长度归一化时的输入。</p>
+
+                <h3>2. 一次查询如何执行</h3>
+
+                <ol>
+                    <li>查询文本先分词，并过滤“的”“了”“和”等停用词；ASCII 字符会统一转为小写。</li>
+                    <li>每个查询词先查倒排索引。若存在精确倒排链，就按精确命中的权重参与评分。</li>
+                    <li>若某个词没有精确倒排链，才会进入编辑距离模糊召回。模糊候选会降权，避免压过精确结果。</li>
+                    <li>同一篇文档命中多个查询词时，分数累加。候选合并后，短语命中只增加小额修正，主排序仍由 BM25F 决定。</li>
+                    <li>结果按分数从高到低排序，最终返回标题、摘要、路径和命中词等 JSON 字段。</li>
+                </ol>
+
+                <blockquote>这条流程的设计重点是“先缩小候选集合，再做精细排序”。倒排索引负责召回候选，BM25F 负责判断候选之间谁更相关，模糊搜索只在精确召回失败时补充结果。</blockquote>
+            </section>
+
+            <section id="bm25" aria-labelledby="bm25Title">
+                <h2 id="bm25Title">二、BM25F 相关性排序</h2>
+
+                <p>BM25（Best Matching 25）是信息检索中经典的统计排序算法，用来计算查询文本与目标文档的相关性。它比简单的关键词匹配或固定词频累加更符合直觉：一个词重复出现并不应该无限加分；特别长的文档不应该仅因为词多就天然占优；罕见术语通常也比常见词更能表达主题。</p>
+
+                <h3>1. BM25 解决什么问题</h3>
+
+                <ul>
+                    <li><strong>词频饱和</strong>：词出现 1 次和 2 次通常有明显差别，但出现 10 次和 20 次不应让相关性翻倍。BM25 让词频收益逐渐变小，防止正文反复堆词刷分。</li>
+                    <li><strong>文档长度归一化</strong>：长正文包含更多词，更容易随机命中查询词。BM25 使用当前文档长度和全库平均长度比较，对过长字段适当降分。</li>
+                    <li><strong>逆文档频率</strong>：专业词出现在少数文档中时，通常比高频常见词更能区分主题，因此应该得到更高权重。</li>
+                </ul>
+
+                <h3>2. BM25 的基本公式</h3>
+
+                <p>对查询 <code>Q</code> 中的每个词 <code>t</code>，BM25 计算它在文档 <code>D</code> 中的贡献，再把所有词的贡献相加：</p>
+
+                <div class="formula">
+                    <math display="block" aria-label="BM25 文档相关性得分公式">
+                        <mrow>
+                            <mtext>Score</mtext><mo>(</mo><mi>D</mi><mo>,</mo><mi>Q</mi><mo>)</mo>
+                            <mo>=</mo>
+                            <munder><mo>∑</mo><mrow><mi>t</mi><mo>∈</mo><mi>Q</mi></mrow></munder>
+                            <mtext>IDF</mtext><mo>(</mo><mi>t</mi><mo>)</mo><mo>·</mo>
+                            <mfrac>
+                                <mrow>
+                                    <mtext>f</mtext><mo>(</mo><mi>t</mi><mo>,</mo><mi>D</mi><mo>)</mo>
+                                    <mo>(</mo><msub><mi>k</mi><mn>1</mn></msub><mo>+</mo><mn>1</mn><mo>)</mo>
+                                </mrow>
+                                <mrow>
+                                    <mtext>f</mtext><mo>(</mo><mi>t</mi><mo>,</mo><mi>D</mi><mo>)</mo>
+                                    <mo>+</mo><msub><mi>k</mi><mn>1</mn></msub><mo>(</mo><mn>1</mn><mo>−</mo><mi>b</mi>
+                                    <mo>+</mo><mi>b</mi><mo>·</mo><mfrac><mrow><mo>|</mo><mi>D</mi><mo>|</mo></mrow><mtext>avgdl</mtext></mfrac><mo>)</mo>
+                                </mrow>
+                            </mfrac>
+                        </mrow>
+                    </math>
+                </div>
+
+                <ul>
+                    <li><code>f(t, D)</code>：词 <code>t</code> 在文档 <code>D</code> 中的出现次数，也就是词频。</li>
+                    <li><code>|D| / avgdl</code>：当前文档长度与平均文档长度的比值，用来做长度归一化。</li>
+                    <li><code>k1</code>：控制词频饱和的速度。值越小，词频越早进入“重复再多也加分不多”的状态。</li>
+                    <li><code>b</code>：控制长度归一化的强度，取值范围通常在 <code>[0, 1]</code>。</li>
+                </ul>
+
+                <p>项目使用的 IDF 变体如下。额外的 <code>log(1 + ...)</code> 平滑可以避免高频词在小语料或极端语料中得到负分：</p>
+
+                <div class="formula">
+                    <math display="block" aria-label="逆文档频率公式">
+                        <mrow>
+                            <mtext>IDF</mtext><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo>
+                            <mtext>log</mtext><mo>(</mo><mn>1</mn><mo>+</mo>
+                            <mfrac>
+                                <mrow><mi>N</mi><mo>−</mo><mtext>df</mtext><mo>(</mo><mi>t</mi><mo>)</mo><mo>+</mo><mn>0.5</mn></mrow>
+                                <mrow><mtext>df</mtext><mo>(</mo><mi>t</mi><mo>)</mo><mo>+</mo><mn>0.5</mn></mrow>
+                            </mfrac>
+                            <mo>)</mo>
+                        </mrow>
+                    </math>
+                </div>
+
+                <p>其中 <code>N</code> 是文档总数，<code>df(t)</code> 是包含词 <code>t</code> 的文档数。</p>
+
+                <h3>3. 项目中的 BM25F：标题和正文分开计算</h3>
+
+                <p>本项目并非把标题和正文混成一段文本，而是采用轻量的 BM25F 思路：标题、正文各算一次 BM25，再按字段权重合并。</p>
+
+                <div class="formula">
+                    <math display="block" aria-label="标题和正文的 BM25F 字段加权公式">
+                        <mrow>
+                            <mtext>Score</mtext><mo>(</mo><mi>t</mi><mo>,</mo><mtext>doc</mtext><mo>)</mo><mo>=</mo>
+                            <mn>3</mn><mo>·</mo><mtext>BM25</mtext><mo>(</mo><mtext>title</mtext><mo>)</mo>
+                            <mo>+</mo><mtext>BM25</mtext><mo>(</mo><mtext>content</mtext><mo>)</mo>
+                        </mrow>
+                    </math>
+                </div>
+
+                <p>当前参数：<code>k1 = 1.5</code>，<code>b = 0.75</code>，标题权重为 <code>3</code>，正文权重为 <code>1</code>。</p>
+
+                <p>这样做的原因是标题通常更集中地概括文章主题。假设一篇文章标题直接包含查询词，另一篇文章只是在很长的正文中重复该词，标题命中的文章通常更应该排在前面。项目测试也专门覆盖了这一点。</p>
+
+                <h3>4. BM25F 的现有不足与优化方向</h3>
+
+                <p>当前 <code>k1</code>、<code>b</code>、标题权重和短语加成都写成固定常量。它们对当前语料可以工作，但还没有通过真实查询集证明是最优组合。BM25F 本身也属于字面匹配算法，不能理解同义表达或上下文语义。</p>
+
+                <p>后续可以先收集“查询 → 期望文档”的标注样本，以 NDCG、MRR、Hit@K 等指标衡量排序质量；再比较不同 <code>k1</code>、<code>b</code> 和字段权重组合。若需要更强的语义理解，可以在 BM25F 召回后增加同义词扩展或语义重排，但这些都属于后续能力，不是当前实现。</p>
+            </section>
+
+            <section id="fuzzy" aria-labelledby="fuzzyTitle">
+                <h2 id="fuzzyTitle">三、编辑距离模糊召回</h2>
+
+                <p>BM25F 的前提是查询词已经命中倒排索引。但用户可能输入错别字，例如把“协议”输入为“协义”。如果只做精确匹配，这个词会完全没有结果。项目因此加入了编辑距离模糊召回，用来补充精确查询找不到的词。</p>
+
+                <h3>1. 当前策略：精确优先，模糊降权</h3>
+
+                <p>编辑距离表示把一个词变成另一个词最少需要多少次插入、删除或替换。项目的模糊策略并不会对每个查询词都执行，而是遵循下面的限制：</p>
+
+                <ul>
+                    <li>先查精确倒排链。精确命中时，直接使用精确结果，不进入模糊召回。</li>
+                    <li>单字查询不做模糊匹配，因为单字容错很容易召回大量噪声。</li>
+                    <li>查询词长度为 2 到 4 个字符时，允许的最大编辑距离是 1。</li>
+                    <li>查询词长度为 5 个字符及以上时，允许的最大编辑距离是 2。</li>
+                    <li>候选词按编辑距离和词长排序，最多保留 5 个候选。</li>
+                    <li>模糊候选进入 BM25F 时统一按 60% 权重降分，精确命中仍是 100%。</li>
+                </ul>
+
+                <p>这种保守设计的目的不是让模糊匹配“尽可能多找”，而是让错别字有机会召回相关内容，同时避免相近但不相关的词排到精确结果前面。</p>
+
+                <h3>2. 当前不足</h3>
+
+                <ul>
+                    <li><strong>错词查询会扫描整个词典</strong>：当前实现遍历倒排词典，逐个计算编辑距离。代码已经利用词长差和动态规划行最小值做剪枝，但总体成本仍会随词典规模增长。</li>
+                    <li><strong>候选评分较粗</strong>：距离为 1 和距离为 2 的候选，目前都会使用统一的 60% 权重，没有进一步区分可信度。</li>
+                    <li><strong>只能处理字面接近</strong>：编辑距离无法识别拼音、同音字、同义词或语义相近表达。</li>
+                </ul>
+
+                <h3>3. 优化方向</h3>
+
+                <p>当词典继续增大时，可以先用 BK-tree 或 trigram 索引缩小候选集合，再对小候选集计算精确编辑距离。README 也列出了 BK-tree、trigram、拼音和同音召回作为后续方向。评分上可以让距离更小的候选获得更高权重，而不是所有模糊候选都固定为 60%。</p>
+            </section>
+
+            <section id="improvements" aria-labelledby="improvementsTitle">
+                <h2 id="improvementsTitle">四、当前不足与优化顺序</h2>
+
+                <p>当前版本适合本地 Markdown 语料的可验证原型：可以完成中文分词、倒排召回、BM25F 排序和基础错别字容错。继续演进时，建议先通过数据证明问题，再增加算法复杂度。</p>
+
+                <ol>
+                    <li><strong>先补相关性评估。</strong>现有测试已经覆盖精确搜索、模糊搜索、BM25 标题优先、并发稳定性、QPS 和平均延迟，但还没有 NDCG、MRR、Hit@K、P95/P99 或 HTTP 端到端压测。先建立查询集和指标，才能判断调参是否真的有效。</li>
+                    <li><strong>再优化模糊候选。</strong>当错词查询的词典扫描成为瓶颈时，引入 BK-tree 或 trigram 索引；然后根据编辑距离、词长和候选质量设计更细的降权策略。</li>
+                    <li><strong>最后演进索引生命周期。</strong>当前 HTTP 服务启动时一次性构建内存索引，不支持运行时增量更新。文档频繁变化或语料扩大后，可以考虑增量更新和持久化索引，减少全量重建成本。</li>
+                </ol>
+
+                <blockquote>总结来说，倒排索引解决“从哪里找”，BM25F 解决“谁更相关”，编辑距离模糊召回解决“输入错了还能不能找到”。三者组合构成当前项目的基础检索能力；后续优化的关键，是用质量指标和真实数据驱动每一步演进。</blockquote>
+            </section>
+
+            <footer class="footnote">Boost Searcher · 本页为纯静态技术说明，不请求新增接口。</footer>
+        </article>
+    </main>
+
+    <script>
+        const themeToggle = document.getElementById("themeToggle");
+
+        initTheme();
+        themeToggle.addEventListener("click", toggleTheme);
+
+        function initTheme() {
+            // 与首页和文章页使用同一主题键，避免页面跳转后主题发生变化。
+            const saved = localStorage.getItem("boost-searcher-theme");
+            const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            setTheme(saved || (prefersDark ? "dark" : "light"));
+        }
+
+        function toggleTheme() {
+            // 只切换根节点属性，页面颜色由 CSS 变量统一处理。
+            const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+            setTheme(next);
+            localStorage.setItem("boost-searcher-theme", next);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.dataset.theme = theme;
+            themeToggle.textContent = theme === "dark" ? "☀" : "☾";
+        }
+    </script>
+</body>
+
+</html>
