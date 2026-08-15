@@ -104,3 +104,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: 完善搜索技术说明页面
+
+**Date**: 2026-08-15
+**Task**: 完善搜索技术说明页面
+**Branch**: `master`
+
+### Summary
+
+新增面向面试展示的静态技术说明页，说明搜索流程、BM25F 与编辑距离模糊召回；使用原生 MathML 渲染公式，并完成浏览器与 CTest 本地验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `004de13` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
