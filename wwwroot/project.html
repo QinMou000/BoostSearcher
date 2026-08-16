@@ -26,7 +26,14 @@
 
         * { box-sizing: border-box; }
 
-        html { scroll-behavior: smooth; }
+        /* 隐藏可见滚动条，但不禁止滚轮、触摸和键盘滚动。 */
+        html {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            scroll-behavior: smooth;
+        }
+
+        html::-webkit-scrollbar { display: none; }
 
         body {
             min-height: 100vh;
@@ -143,11 +150,15 @@
         .formula {
             margin: 20px 0;
             overflow-x: auto;
+            overflow-y: hidden;
             color: var(--text);
             font-size: 1.16rem;
             line-height: 1.8;
+            scrollbar-width: none;
             text-align: center;
         }
+
+        .formula::-webkit-scrollbar { display: none; }
 
         .formula math { min-width: max-content; }
 

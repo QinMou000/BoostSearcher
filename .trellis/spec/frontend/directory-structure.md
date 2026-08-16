@@ -69,6 +69,7 @@ src/
 * 首页入口和返回首页链接使用以 `/` 开头的绝对路径，避免当前页面路径影响跳转。
 * 固定技术说明直接写在 HTML 内，不为展示用途额外修改 C++ HTTP 服务、CMake 或搜索测试。
 * 固定数学公式优先使用原生 `<math display="block">`、`<mfrac>`、`<msub>` 等 MathML 标签，使分式、下标等按数学规则排版；不应把公式伪装成代码块、图片，也不为此引入新的 CDN 脚本。
+* 若展示页需要隐藏滚动条，页面根元素和公式容器均使用 `scrollbar-width: none` 与 `::-webkit-scrollbar { display: none; }`；公式容器保留 `overflow-x: auto`，并设置 `overflow-y: hidden`，不能用 `overflow: hidden` 截断长公式或禁用文档滚动。
 
 ### 3. 内容与交互契约
 
