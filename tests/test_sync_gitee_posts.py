@@ -6,9 +6,13 @@ from __future__ import annotations
 
 import json
 import base64
+import io
+import re
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path, PurePosixPath
+from unittest import mock
 
 from tools import sync_gitee_posts as sync
 
@@ -106,6 +110,83 @@ class SyncGiteePostsTests(unittest.TestCase):
                     workers=0,
                     fetch_bytes=FakeFetcher({}),
                 )
+
+    def test_log_file_path_uses_script_name_instead_of_http_log(self) -> None:
+        """同步工具日志必须按自身脚本命名，不能与 HTTP 服务共用。"""
+
+        expected_path = sync.repository_root() / "sync_gitee_posts.log"
+        self.assertEqual(expected_path, sync.log_file_path())
+        self.assertNotEqual(sync.repository_root() / "http.log", sync.log_file_path())
+
+    def test_file_logger_uses_expected_format_without_duplicate_handlers(self) -> None:
+        """重复初始化同一文件时应复用处理器，并保持完整日志字段顺序。"""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "sync_gitee_posts.log"
+            logger = sync.configure_file_logger(log_path)
+            try:
+                same_logger = sync.configure_file_logger(log_path)
+                logger.info("独立日志格式测试")
+
+                self.assertIs(logger, same_logger)
+                self.assertEqual(1, len(logger.handlers))
+                log_line = log_path.read_text(encoding="utf-8")
+                self.assertRegex(
+                    log_line,
+                    re.compile(
+                        r"\[INFO\] \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] "
+                        r"\[独立日志格式测试\] \[.+\.py : \d+\]\n"
+                    ),
+                )
+            finally:
+                sync.close_file_logger(logger)
+
+    def test_main_logs_success_events_to_independent_file(self) -> None:
+        """入口应把正常同步事件同时写入终端和独立日志文件。"""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "sync_gitee_posts.log"
+
+            def fake_sync_posts(**kwargs: object) -> sync.SyncStats:
+                print_line = kwargs["print_line"]
+                self.assertTrue(callable(print_line))
+                print_line("[汇总] 远端=1 已同步=1 待新增=0 待更新=0")
+                print_line("[结果] 已执行，新增=0 更新=0 已同步=1 失败=0")
+                return sync.SyncStats(remote_count=1, up_to_date_count=1)
+
+            stdout = io.StringIO()
+            with (
+                mock.patch.object(sync, "log_file_path", return_value=log_path),
+                mock.patch.object(sync, "sync_posts", side_effect=fake_sync_posts),
+                redirect_stdout(stdout),
+            ):
+                exit_code = sync.main(["--output-dir", temporary_directory])
+
+            self.assertEqual(0, exit_code)
+            self.assertIn("[汇总]", stdout.getvalue())
+            log_content = log_path.read_text(encoding="utf-8")
+            self.assertIn("工具启动：", log_content)
+            self.assertIn("[汇总] 远端=1 已同步=1 待新增=0 待更新=0", log_content)
+
+    def test_main_logs_sync_error_to_independent_file(self) -> None:
+        """入口捕获同步错误后，应同时写入标准错误和独立日志文件。"""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "sync_gitee_posts.log"
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(sync, "log_file_path", return_value=log_path),
+                mock.patch.object(sync, "sync_posts", side_effect=sync.SyncError("离线测试失败")),
+                redirect_stderr(stderr),
+            ):
+                exit_code = sync.main(["--output-dir", temporary_directory])
+
+            self.assertEqual(1, exit_code)
+            self.assertIn("[错误] 离线测试失败", stderr.getvalue())
+            self.assertRegex(
+                log_path.read_text(encoding="utf-8"),
+                r"\[ERROR\].*\[同步失败：离线测试失败\]",
+            )
 
     def test_preview_only_lists_missing_post_without_writing(self) -> None:
         """预览模式只读取目录清单，不能请求正文或写入目标目录。"""

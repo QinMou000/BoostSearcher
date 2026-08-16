@@ -9,6 +9,7 @@ import base64
 import binascii
 import hashlib
 import json
+import logging
 import os
 import re
 import sys
@@ -36,6 +37,8 @@ DEFAULT_TIMEOUT_SECONDS = 20.0
 DEFAULT_MAX_NEW_FILES = 500
 DEFAULT_WORKERS = 4
 MAX_FILE_BYTES = 5 * 1024 * 1024
+LOG_FORMAT = "[%(levelname)s] [%(asctime)s] [%(message)s] [%(filename)s : %(lineno)d]"
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 class SyncError(RuntimeError):
@@ -86,6 +89,53 @@ def repository_root() -> Path:
     """根据脚本位置定位仓库根目录，避免依赖调用时的工作目录。"""
 
     return Path(__file__).resolve().parents[1]
+
+
+def log_file_path(script_path: Path | None = None) -> Path:
+    """按脚本文件名生成独立日志路径，避免工具之间混写同一个日志文件。"""
+
+    resolved_script_path = (script_path or Path(__file__)).resolve()
+    return repository_root() / f"{resolved_script_path.stem}.log"
+
+
+def configure_file_logger(log_path: Path | None = None) -> logging.Logger:
+    """创建或复用指定文件的日志器，确保同次进程运行不会重复写入。"""
+
+    resolved_log_path = (log_path or log_file_path()).resolve()
+    # 日志器名称包含完整路径摘要，避免临时目录测试与默认日志器互相复用处理器。
+    logger_name = f"{__name__}.{hashlib.sha1(str(resolved_log_path).encode()).hexdigest()}"
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    if logger.handlers:
+        return logger
+
+    # 指定 UTF-8，保证同步文章名等中文文本在不同 Windows 代码页下保持可读。
+    file_handler = logging.FileHandler(resolved_log_path, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT))
+    logger.addHandler(file_handler)
+    return logger
+
+
+def close_file_logger(logger: logging.Logger) -> None:
+    """关闭并移除文件处理器，避免 Windows 在进程内持续锁定日志文件。"""
+
+    for handler in logger.handlers[:]:
+        # 先解绑再关闭，使同一进程后续初始化能够创建可用的新处理器。
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def print_and_log(message: str, logger: logging.Logger) -> None:
+    """保持原终端输出，同时把同步事件写入独立日志文件。"""
+
+    print(message)
+    # 单篇失败需提升为 ERROR，其余既有进度行使用 INFO 保持语义稳定。
+    if message.startswith("[失败]"):
+        logger.error(message)
+    else:
+        logger.info(message)
 
 
 def build_download_url(source_path: PurePosixPath) -> str:
@@ -514,17 +564,34 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parse_args(argv)
     try:
-        stats = sync_posts(
-            target_directory=Path(args.output_dir).resolve(),
-            apply=not args.dry_run,
-            timeout_seconds=args.timeout,
-            max_new_files=args.max_new_files,
-            workers=args.workers,
-        )
-    except SyncError as exc:
-        print(f"[错误] {exc}", file=sys.stderr)
+        logger = configure_file_logger()
+    except OSError as exc:
+        print(f"[错误] 无法初始化日志文件：{exc}", file=sys.stderr)
         return 1
-    return 1 if stats.failed_count else 0
+
+    logger.info(
+        "工具启动："
+        f"输出目录={Path(args.output_dir).resolve()} 预览={args.dry_run} "
+        f"超时={args.timeout:g} 最大新增={args.max_new_files} 并发数={args.workers}"
+    )
+    try:
+        try:
+            stats = sync_posts(
+                target_directory=Path(args.output_dir).resolve(),
+                apply=not args.dry_run,
+                timeout_seconds=args.timeout,
+                max_new_files=args.max_new_files,
+                workers=args.workers,
+                print_line=lambda message: print_and_log(message, logger),
+            )
+        except SyncError as exc:
+            print(f"[错误] {exc}", file=sys.stderr)
+            logger.error("同步失败：%s", exc)
+            return 1
+        return 1 if stats.failed_count else 0
+    finally:
+        # 独立命令结束后释放文件句柄，便于 Windows 的调度器、测试和清理任务继续操作日志。
+        close_file_logger(logger)
 
 
 if __name__ == "__main__":
