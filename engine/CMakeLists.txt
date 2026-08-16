@@ -53,3 +53,10 @@ add_executable(searcher_tests
 target_link_libraries(searcher_tests PRIVATE search_engine)
 
 add_test(NAME searcher_tests COMMAND searcher_tests)
+
+add_executable(log_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tests/log_tests.cc
+)
+target_link_libraries(log_tests PRIVATE search_engine)
+
+add_test(NAME log_tests COMMAND log_tests)
