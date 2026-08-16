@@ -233,6 +233,42 @@ ctest --test-dir build -C Debug --output-on-failure
 这个 QPS 统计的是测试进程内 `Searcher::Search + JSON 解析校验`，
 不是 HTTP 服务端到端 QPS。
 
+## 同步 Gitee 文章
+
+`tools/sync_gitee_posts.py` 可独立检查 Gitee 个人文章仓库，并真实同步本地缺失或已被远端修订的 Markdown。它只使用 Python 标准库，默认下载到 `data/raw/md/`：
+
+```bash
+python -B tools/sync_gitee_posts.py
+```
+
+可通过 `--output-dir` 指定任意输出目录；工具会创建不存在的目录，并原子更新远端内容已变化的同路径文章。工具使用 Gitee Git Blob SHA 比较内容，相同的文章不会重复下载：
+
+```bash
+python -B tools/sync_gitee_posts.py --output-dir D:\articles
+```
+
+工具优先下载 Gitee 原始 Markdown 地址；该地址受限时，会回退到同路径的 Gitee Contents API，并再次校验路径和 SHA，确保不会写入其他文件。
+
+首次全量下载可用 `--workers 8` 增加并发数；日常同步默认使用 4 个工作线程，取值范围为 1 到 16：
+
+```bash
+python -B tools/sync_gitee_posts.py --output-dir D:\articles --workers 8
+```
+
+如需先查看本次会新增或更新哪些文件，显式传入 `--dry-run`：
+
+```bash
+python -B tools/sync_gitee_posts.py --dry-run --output-dir D:\articles
+```
+
+可用 `--timeout` 调整单个网络请求的超时秒数，用 `--max-new-files` 设置单次允许新增的文章数量上限。同步完成后，如需让新增文章进入现有索引，仍需单独运行 `parser` 生成 `data/raw.txt`，再重启 `http_server`。
+
+离线自动化测试不会访问 Gitee，也不会写入项目真实语料：
+
+```bash
+python -B -m unittest discover -s tests -p "test_sync_gitee_posts.py" -v
+```
+
 ## 当前限制
 
 - 模糊搜索仍是全词典扫描，数据量大后需要更高效的候选索引。

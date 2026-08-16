@@ -169,6 +169,71 @@ elem.content_count = content_count;
 merged.score += GetBm25Score(elem, doc, idf);
 ```
 
+---
+
+## 场景：独立 Gitee Markdown 同步工具
+
+### 1. 范围与触发条件
+
+* 触发条件：新增或修改 `tools/sync_gitee_posts.py`，或调整 Gitee 文章同步、落盘和定时调用前的验证流程。
+* 适用范围：Gitee `wang-qin928/personal_post` 的 `main/source/_posts`、本地 Markdown 输出目录和 `tests/test_sync_gitee_posts.py`。
+* 不适用范围：`http_server` 的凌晨调度、`parser` 重建 `data/raw.txt` 和运行中索引热更新需作为独立需求处理。
+
+### 2. 签名
+
+* 标准命令：`python -B tools/sync_gitee_posts.py [--output-dir <目录>] [--dry-run] [--workers <1-16>] [--timeout <秒>] [--max-new-files <数量>]`。
+* 默认行为：真实同步到 `<仓库>/data/raw/md`；`--output-dir` 指定其他输出目录；仅 `--dry-run` 禁止下载和写入。
+* 核心接口：`sync_posts(target_directory, apply, timeout_seconds, max_new_files, workers, fetch_bytes, print_line)` 返回 `SyncStats`。
+
+### 3. 契约
+
+* 远端目录条目必须是 `source/_posts` 直接子目录中的 `.md` 文件，并包含 40 位小写 Git Blob SHA 与白名单下载地址。
+* 本地 Markdown 在比较 SHA 前必须将 CRLF 规范化为 LF；内容相同不下载，远端 SHA 不同则以远端版本为权威原子更新。
+* 原始 Markdown 地址优先；发生请求错误时，只能回退到同一仓库、分支、路径和 SHA 的 Gitee Contents API Base64 正文。
+* 文件必须先完整写入输出目录内的临时文件；新增使用同目录硬链接发布，更新使用 `os.replace`，不得暴露半写入文章。
+* 下载并发默认 4，限制在 1 到 16；主线程按远端路径稳定输出结果，任务日志可直接比较。
+
+### 4. 验证与错误矩阵
+
+* `--dry-run` -> 只访问目录接口，输出新增和更新计划，不创建输出目录或文章文件。
+* 输出文件缺失 -> 下载并原子新增。
+* 输出文件存在且规范化 SHA 相同 -> 标记已同步，不请求正文。
+* 输出文件存在且 SHA 不同 -> 下载并原子更新。
+* 原始下载 451、超时或网络错误 -> 请求同路径 Contents API；备用接口路径、SHA、编码或 Base64 不合法 -> 本篇失败且进程返回非零。
+* 路径回退、非 Markdown、非 HTTPS/白名单地址、正文超过 5 MiB、并发数不在 1 到 16 -> 拒绝并返回 `SyncError`。
+
+### 5. 正常、基础与错误案例
+
+* 正常：`python -B tools/sync_gitee_posts.py --output-dir D:\\articles --workers 8`，将缺失文章新增、将远端修订文章更新。
+* 基础：`python -B tools/sync_gitee_posts.py --dry-run --output-dir D:\\articles`，仅确认本次计划。
+* 错误：仅通过 `Path.exists()` 判断文章已同步，导致远端修订无法更新。
+* 错误：原始地址失败后接受任意第三方下载 URL，绕过仓库和 SHA 校验。
+
+### 6. 必需测试
+
+* `python -B -m unittest discover -s tests -p "test_sync_gitee_posts.py" -v` 必须覆盖预览、首次新增、重复跳过、远端更新、CRLF/LF 比较、下载失败、原始地址备用回退、路径/URL/大小/并发边界。
+* 真实冒烟测试必须使用独立 `--output-dir`，确认首次同步的 Markdown 数量与远端目录一致、临时文件数为零；第二次执行应没有新增或更新。
+* 修改脚本后必须运行 `git diff --check`，并搜索废弃参数 `--apply`、`--target-dir` 和 `args.target_dir`。
+
+### 7. 错误与正确实现
+
+#### 错误
+
+```python
+if destination.exists():
+    return "已同步"
+```
+
+#### 正确
+
+```python
+if destination.exists() and local_git_blob_sha(destination) == post.blob_sha:
+    return "已同步"
+
+content = fetch_post_content(post, timeout_seconds, fetch_bytes)
+return publish_file(destination, content, post.blob_sha)
+```
+
 <!-- What reviewers should check -->
 
 (To be filled by the team)
