@@ -170,3 +170,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: 新增 Gitee 文章同步工具
+
+**Date**: 2026-08-16
+**Task**: 新增 Gitee 文章同步工具
+**Branch**: `master`
+
+### Summary
+
+新增可独立运行的 Gitee Markdown 同步工具，支持自定义输出目录、SHA 更新判定、受控并发与 Contents API 备用下载；完成真实 190 篇同步与自动化验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ac28040` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
