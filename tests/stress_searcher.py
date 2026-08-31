@@ -79,6 +79,8 @@ class Metric:
             f"失败数={self.failures}",
         ]
         if self.latencies_ms:
+            actual_avg_ms = sum(self.latencies_ms) / len(self.latencies_ms)
+            parts.append(f"实际平均响应延迟_ms={actual_avg_ms:.2f}")
             parts.append(f"P95_ms={percentile(self.latencies_ms, 95):.2f}")
             parts.append(f"P99_ms={percentile(self.latencies_ms, 99):.2f}")
         print(" ".join(parts))
@@ -130,7 +132,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--threads", type=int, default=8, help="HTTP 并发线程数，默认 8。")
     parser.add_argument("--http-requests", type=int, default=0, help="HTTP 请求数，默认等于 --queries。")
     parser.add_argument("--build-dir", default="build/stress", help="CMake 构建目录，默认 build/stress。")
-    parser.add_argument("--config", default="Debug", help="多配置生成器的配置名，默认 Debug。")
+    parser.add_argument("--config", default="Release", help="多配置生成器的配置名，默认 Release。")
     parser.add_argument("--skip-build", action="store_true", help="跳过 CMake 构建，直接使用已有产物。")
     parser.add_argument("--skip-http", action="store_true", help="跳过 HTTP 压测，只测 debug 入口。")
     parser.add_argument("--http-url", default="", help="压测已运行 HTTP 服务，例如 http://127.0.0.1:8080。")

@@ -66,7 +66,8 @@ Questions to answer:
 * 脚本不得写入或覆盖仓库根目录的 `data/raw.txt`。
 * 临时语料应写入 `build/` 忽略目录或用户显式指定的工作目录。
 * 成功退出码必须为 0；构建失败、二进制缺失、查询校验失败、HTTP 错误必须返回非零退出码。
-* 指标输出至少包含查询数、耗时、QPS、平均延迟和失败数；HTTP 压测应额外输出尾延迟。
+* 指标输出至少包含查询数、耗时、QPS、平均延迟和失败数；HTTP 压测应额外输出实际平均响应延迟与尾延迟。
+* `平均延迟_ms` 是总耗时除以请求数的吞吐摊销值；当收集到单请求耗时列表时，`实际平均响应延迟_ms` 必须是该列表的算术平均值，二者不得混用。
 
 ### 4. Validation & Error Matrix
 
@@ -88,7 +89,7 @@ Questions to answer:
 
 * 参数解析：`python -B tests/stress_searcher.py --help` 必须成功。
 * 命令行压测：小规模 `--skip-http` 运行必须失败数为 0。
-* HTTP 压测：Windows 自动启动或 `--http-url` 模式必须覆盖 `/s?word=` 并校验失败数为 0。
+* HTTP 压测：Windows 自动启动或 `--http-url` 模式必须覆盖 `/s?word=` 并校验失败数为 0，且断言输出实际平均响应延迟、P95 与 P99。
 * 既有 CTest：构建环境允许时必须执行 `ctest --test-dir build -C Debug --output-on-failure`。
 
 ### 7. Wrong vs Correct
