@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-0.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-08-16
+- **Total Sessions**: 8
+- **Last Active**: 2026-08-31
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-0.md` | ~238 | Active |
+| `journal-0.md` | ~271 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-08-31 | Release 压测默认配置与并发曲线 | `7ae0c6e` | `master` |
 | 7 | 2026-08-16 | 为 Gitee 同步工具添加独立日志 | `3a820fe` | `master` |
 | 6 | 2026-08-16 | 新增 Gitee 文章同步工具 | `ac28040` | `master` |
 | 5 | 2026-08-16 | 统一日志时间输出格式 | `74658c9` | `master` |

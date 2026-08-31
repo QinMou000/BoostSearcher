@@ -236,3 +236,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Release 压测默认配置与并发曲线
+
+**Date**: 2026-08-31
+**Task**: Release 压测默认配置与并发曲线
+**Branch**: `master`
+
+### Summary
+
+将压力测试默认构建切换为 Release，新增实际平均响应延迟指标，并完成 1/2/4/8/16 并发曲线与 Release CTest 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7ae0c6e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
