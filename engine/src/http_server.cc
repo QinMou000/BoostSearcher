@@ -1,4 +1,3 @@
-#include "daemon.h"
 #include "httplib.h"
 #include "log.h"
 #include "searcher.h"
@@ -48,8 +47,7 @@ bool IsSafeDocPath(const std::string &path) {
 }
 
 int main() {
-    daemon();
-    FileLogStrategy();
+    // 保持前台运行，让 Docker 或 systemd 管理进程生命周期并采集标准输出日志。
 
     ns_searcher::Searcher searcher;
     searcher.InitSearcher(raw);

@@ -1,0 +1,56 @@
+# 在线服务与解析工具共用 Dockerfile 产物，业务数据统一挂载到 /app/data。
+services:
+  boost-searcher:
+    # 飞牛图形界面首次构建默认使用单任务，降低小内存设备的卡死风险。
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_JOBS: "${BUILD_JOBS:-1}"
+    image: boost-searcher:latest
+    # 图形界面启动时直接构建源码镜像，不依赖命令行预先生成本地镜像。
+    pull_policy: build
+
+    # 健康检查和 tini 启动方式直接继承镜像定义。
+    restart: unless-stopped
+    # 飞牛从 ZIP 解压的项目文件可能没有读取位，使用 root 读取只读挂载的数据和词典。
+    user: "0:0"
+    ports:
+      # HTTP_PORT 只改变宿主机端口，程序仍监听容器内的 8080。
+      - "${HTTP_PORT:-8080}:8080"
+    volumes:
+      # 在线进程只读取文章和语料；数据目录必须提前准备好。
+      - type: bind
+        source: ./data
+        target: /app/data
+        read_only: true
+        bind:
+          create_host_path: false
+
+    # 限制容器日志的磁盘占用，搜索请求较多时也不会无限增长。
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  parser:
+    # 解析工具按需执行，普通 up 不会启动它，也不会重复构建镜像。
+    profiles: [tools]
+    image: boost-searcher:latest
+    pull_policy: never
+    command: ["/usr/local/bin/parser"]
+    restart: "no"
+
+    # 解析程序没有 HTTP 接口，因此禁用镜像继承的首页健康检查。
+    healthcheck:
+      disable: true
+    volumes:
+      # 用当前宿主机用户运行此工具，生成的 raw.txt 保持原有文件归属。
+      # 命令示例和 --user 参数见 docs/docker.md。
+      - type: bind
+        source: ./data
+        target: /app/data
+        read_only: false
+        bind:
+          create_host_path: false

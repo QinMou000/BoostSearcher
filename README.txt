@@ -101,6 +101,8 @@ title\3content\3url\n
 
 ## 构建
 
+Docker 和 Docker Compose 构建、数据挂载和云服务器启动步骤见 [Docker 部署说明](docs/docker.md)。
+
 要求：
 
 - CMake 3.14+
