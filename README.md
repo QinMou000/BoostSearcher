@@ -7,6 +7,8 @@
 接口返回 JSON 搜索结果。当前版本支持中文分词、权重排序、摘要生成、
 以 `data/` 为根目录的结果路径，以及一版基于编辑距离的模糊搜索。
 
+[![Architecture diagram of qinmou000/boostsearcher](https://gitdiagram.com/qinmou000/boostsearcher/diagram.png)](https://gitdiagram.com/qinmou000/boostsearcher?utm_source=readme&utm_medium=picture)
+
 ## 功能概览
 
 - Markdown 文档解析：读取 `data/raw/md/*.md`，抽取标题、正文和文件路径。
